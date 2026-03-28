@@ -1,13 +1,8 @@
-# Backend/test_all.py
+# backend/test_all.py
 import requests
-import json
 
 BASE_URL = "http://localhost:5000/api/run"
 
-# --- Test graph ---
-# A - B - C
-#     |
-#     D - E
 NODES = [
     {"id": "A", "position": {"x": 0,   "y": 0}},
     {"id": "B", "position": {"x": 100, "y": 0}},
@@ -16,27 +11,20 @@ NODES = [
     {"id": "E", "position": {"x": 200, "y": 100}},
 ]
 
+# ✅ FIX: flat format matching frontend serializeGraph output
 EDGES = [
-    {"source": "A", "target": "B", "data": {"weight": 1}},
-    {"source": "B", "target": "C", "data": {"weight": 1}},
-    {"source": "B", "target": "D", "data": {"weight": 2}},
-    {"source": "D", "target": "E", "data": {"weight": 1}},
+    {"source": "A", "target": "B", "weight": 1},
+    {"source": "B", "target": "C", "weight": 1},
+    {"source": "B", "target": "D", "weight": 2},
+    {"source": "D", "target": "E", "weight": 1},
 ]
 
 ALGORITHMS = [
-    "BFS",
-    "DFS",
-    "UCS",
-    "IDDFS",
-    "DLS",
-    "Bidirectional",
-    "Greedy Best-First",
-    "A*",
-    "Hill Climbing",
-    "Simulated Annealing",
+    "BFS", "DFS", "UCS", "IDDFS", "DLS",
+    "Bidirectional", "Greedy Best-First", "A*",
+    "Hill Climbing", "Simulated Annealing",
 ]
 
-# --- Run each algorithm ---
 print(f"\n{'='*60}")
 print(f"  PathFinder Backend — Full Algorithm Test")
 print(f"{'='*60}\n")
@@ -52,6 +40,9 @@ for algo in ALGORITHMS:
         "start":     "A",
         "goal":      "E",
     }
+    # DLS gets an extra param
+    if algo == "DLS":
+        payload["depth_limit"] = 6
 
     try:
         res  = requests.post(BASE_URL, json=payload, timeout=5)

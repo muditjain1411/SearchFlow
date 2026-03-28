@@ -1,0 +1,16 @@
+src/
+├── components/
+│   ├── GraphCanvas.jsx        ← React Flow canvas lives here
+│   ├── ControlPanel.jsx       ← Algorithm selector, speed, run/reset
+│   ├── Sidebar.jsx            ← Step log + legend
+│   ├── CustomNode.jsx         ← Custom React Flow node appearance
+│   └── CustomEdge.jsx         ← Custom React Flow edge appearance
+│
+├── hooks/
+│   └── useGraphState.js       ← All React Flow node/edge state lives here
+│
+├── services/
+│   └── api.js                 ← All Flask API calls (fetch/axios) live here
+│
+├── App.jsx                    ← Composes layout, imports top-level components
+└── main.jsx                   ← Unchanged Vite entry point

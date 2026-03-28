@@ -133,9 +133,10 @@ def run(nodes, edges, start, goal):
 # --- Helpers ---
 
 def _parse_weight(edge):
-    """Safely extracts edge weight, defaults to 1 if missing or invalid."""
     try:
-        return float(edge.get("data", {}).get("weight", 1))
+        # Frontend sends flat { source, target, weight } — no data wrapper
+        w = edge.get("weight") or edge.get("data", {}).get("weight", 1)
+        return float(w)
     except (TypeError, ValueError):
         return 1.0
 

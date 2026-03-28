@@ -2,7 +2,7 @@
 import { useState } from "react";
 import {
     Play, RotateCcw, Circle,
-    ChevronDown, Cpu, ListOrdered, LayoutTemplate,
+    ChevronDown, Cpu, ListOrdered, LayoutTemplate, Layers,
 } from "lucide-react";
 import { createDragGhost } from "./GraphCanvas";
 
@@ -37,6 +37,7 @@ export function Sidebar({
 }) {
     const [selectedAlgo, setSelectedAlgo] = useState("BFS");
     const [algoOpen, setAlgoOpen] = useState(false);
+    const [dlsDepthLimit, setDlsDepthLimit] = useState(5); // ← 6b
 
     const handleDragStart = (e, type) => {
         const ghost = createDragGhost(type);
@@ -204,6 +205,40 @@ export function Sidebar({
                     </div>
                 </div>
 
+                {/* ── 6b: DLS depth limit — appears only when DLS is selected ─── */}
+                {selectedAlgo === "DLS" && (
+                    <div className="
+            flex items-center justify-between
+            px-3 py-2 rounded-lg mb-3
+            bg-amber-500/10 border border-amber-500/30
+          ">
+                        <div className="flex items-center gap-2">
+                            <Layers size={13} className="text-amber-400 shrink-0" />
+                            <span className="text-xs text-amber-600 dark:text-amber-400 font-medium">
+                                Depth limit
+                            </span>
+                        </div>
+                        <input
+                            type="number"
+                            min={1}
+                            max={20}
+                            value={dlsDepthLimit}
+                            onChange={e =>
+                                setDlsDepthLimit(Math.max(1, Math.min(20, Number(e.target.value))))
+                            }
+                            className="
+                w-12 text-center text-xs font-mono font-semibold
+                rounded-md px-1 py-1
+                bg-gray-100 dark:bg-gray-800
+                border border-amber-400/40
+                text-gray-800 dark:text-gray-200
+                outline-none focus:border-amber-400
+                transition-colors duration-150
+              "
+                        />
+                    </div>
+                )}
+
                 {/* Speed Control */}
                 <div className="space-y-2 mb-3">
                     <div className="flex justify-between text-xs text-gray-400">
@@ -225,9 +260,9 @@ export function Sidebar({
                     </div>
                 </div>
 
-                {/* Visualize button */}
+                {/* Visualize — passes depthLimit as second arg */}
                 <button
-                    onClick={() => onVisualize?.(selectedAlgo)}
+                    onClick={() => onVisualize?.(selectedAlgo, dlsDepthLimit)}
                     disabled={isRunning}
                     className="
             w-full py-2.5 rounded-lg text-sm font-semibold

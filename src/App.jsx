@@ -5,7 +5,7 @@ import GraphCanvas from "./components/GraphCanvas";
 import { useGraphState } from "./hooks/useGraphState";
 import { runAlgorithm } from "./services/api";
 
-const DEFAULT_SPEED = 600; // ms between animation steps
+const DEFAULT_SPEED = 600;
 
 export default function App() {
   const [darkMode, setDarkMode] = useState(true);
@@ -17,7 +17,7 @@ export default function App() {
 
   const {
     nodes, edges,
-    onNodesChange, onEdgesChange,   // ✅ FIX 2: use real handlers from hook
+    onNodesChange, onEdgesChange,
     isWeighted, setIsWeighted,
     addNode,
     removeNode,
@@ -45,26 +45,15 @@ export default function App() {
     canvasRef.current?.handleDownload(mode);
   }, []);
 
-  // ─── Reset animation state on all nodes and edges ─────────────────────────
+  // ─── Reset animation state ────────────────────────────────────────────────
   const resetAnimState = useCallback(() => {
-    setNodes(nds =>
-      nds.map(n => ({
-        ...n,
-        data: { ...n.data, animState: null }
-      }))
-    );
-    setEdges(eds =>
-      eds.map(e => ({
-        ...e,
-        data: { ...e.data, animState: null }
-      }))
-    );
+    setNodes(nds => nds.map(n => ({ ...n, data: { ...n.data, animState: null } })));
+    setEdges(eds => eds.map(e => ({ ...e, data: { ...e.data, animState: null } })));
   }, [setNodes, setEdges]);
 
-  // ─── Apply a single algorithm step to the canvas ──────────────────────────
+  // ─── Apply a single step to the canvas ───────────────────────────────────
   const applyStep = useCallback((step) => {
     const { current, visited, frontier, path } = step;
-
     const visitedSet = new Set(visited || []);
     const frontierSet = new Set(frontier || []);
     const pathSet = new Set(path || []);
@@ -84,32 +73,23 @@ export default function App() {
     setEdges(eds =>
       eds.map(e => {
         let animState = null;
-        const srcInPath = pathSet.has(e.source);
-        const tgtInPath = pathSet.has(e.target);
-        const srcVisited = visitedSet.has(e.source);
-        const tgtVisited = visitedSet.has(e.target);
-        if (srcInPath && tgtInPath) animState = "path";
-        else if (srcVisited && tgtVisited) animState = "visited";
+        if (pathSet.has(e.source) && pathSet.has(e.target)) animState = "path";
+        else if (visitedSet.has(e.source) && visitedSet.has(e.target)) animState = "visited";
         return { ...e, data: { ...e.data, animState } };
       })
     );
   }, [setNodes, setEdges]);
 
-  // ─── Highlight final path after animation completes ───────────────────────
+  // ─── Lock in final path highlight ─────────────────────────────────────────
   const applyFinalPath = useCallback((path) => {
     if (!path || path.length === 0) return;
     const pathSet = new Set(path);
-
     setNodes(nds =>
       nds.map(n => ({
         ...n,
-        data: {
-          ...n.data,
-          animState: pathSet.has(n.id) ? "path" : "visited"
-        }
+        data: { ...n.data, animState: pathSet.has(n.id) ? "path" : "visited" }
       }))
     );
-
     setEdges(eds =>
       eds.map(e => ({
         ...e,
@@ -122,7 +102,8 @@ export default function App() {
   }, [setNodes, setEdges]);
 
   // ─── Main visualize handler ────────────────────────────────────────────────
-  const handleVisualize = useCallback(async (algo) => {
+  // 6b: accepts depthLimit as second param, adds depth_limit to payload for DLS
+  const handleVisualize = useCallback(async (algo, depthLimit = 5) => {
     if (isRunning) return;
     if (animationRef.current) clearTimeout(animationRef.current);
     resetAnimState();
@@ -135,8 +116,13 @@ export default function App() {
       return;
     }
 
+    // ── Attach depth_limit for DLS ──────────────────────────────────────────
+    if (algo === "DLS") {
+      graph.depth_limit = depthLimit;
+    }
+
     setIsRunning(true);
-    setStepLog([`Running ${algo}...`]);
+    setStepLog([`Running ${algo}${algo === "DLS" ? ` (depth limit: ${depthLimit})` : ""}...`]);
 
     try {
       const result = await runAlgorithm(algo, graph);
@@ -166,13 +152,9 @@ export default function App() {
       setStepLog([`❌ Error: ${err.message}`]);
       setIsRunning(false);
     }
-  }, [
-    isRunning, speed,
-    serializeGraph, resetAnimState,
-    applyStep, applyFinalPath
-  ]);
+  }, [isRunning, speed, serializeGraph, resetAnimState, applyStep, applyFinalPath]);
 
-  // ─── Clear canvas + animation state ───────────────────────────────────────
+  // ─── Clear ─────────────────────────────────────────────────────────────────
   const handleClear = useCallback(() => {
     if (animationRef.current) clearTimeout(animationRef.current);
     setIsRunning(false);
@@ -192,7 +174,6 @@ export default function App() {
           onExport={handleExport}
         />
 
-        {/* ✅ FIX 1: removed pt-14 — Navbar is in normal flow, not fixed */}
         <div className="flex flex-1 overflow-hidden">
           <Sidebar
             nodes={nodes}
@@ -212,14 +193,14 @@ export default function App() {
             nodes={nodes}
             edges={edges}
             darkMode={darkMode}
-            onNodesChange={onNodesChange}         
-            onEdgesChange={onEdgesChange}         
+            onNodesChange={onNodesChange}
+            onEdgesChange={onEdgesChange}
             onConnect={onConnect}
-            addNode={addNode}                     
-            removeNode={removeNode}               
-            removeEdge={removeEdge}               
-            updateEdgeWeight={updateEdgeWeight}   
-            updateNodeLabel={updateNodeLabel}     
+            addNode={addNode}
+            removeNode={removeNode}
+            removeEdge={removeEdge}
+            updateEdgeWeight={updateEdgeWeight}
+            updateNodeLabel={updateNodeLabel}
             isWeighted={isWeighted}
           />
         </div>
