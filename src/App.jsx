@@ -16,7 +16,6 @@ function App() {
     setSteps([`Starting ${algorithm}...`, "Fetching graph data...", "Sending to backend..."]);
   };
 
-
   return (
     <div className={darkMode ? "dark" : ""}>
       <div className="flex flex-col h-screen w-screen bg-gray-50 dark:bg-gray-950 transition-colors duration-300">

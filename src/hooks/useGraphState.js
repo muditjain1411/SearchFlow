@@ -113,19 +113,29 @@ export function useGraphState() {
             const id = generateId();
             const labelMap = { start: "S", goal: "G", default: id.split("_")[1] };
 
+            // ── Enforce single start / single goal ──────────────────────────────
+            if (nodeType === "start" || nodeType === "goal") {
+                setNodes((nds) =>
+                    nds.map((n) =>
+                        n.data.type === nodeType
+                            ? { ...n, data: { ...n.data, type: "default" } }
+                            : n
+                    )
+                );
+            }
+
             const newNode = {
                 id,
                 type: "customNode",
                 position,
                 data: {
                     label: labelMap[nodeType] ?? "N",
-                    type: nodeType, // "start" | "goal" | "default"
+                    type: nodeType,
                 },
             };
 
             setNodes((nds) => [...nds, newNode]);
 
-            // Auto-connect if dropped onto a parent node
             if (parentNodeId) {
                 const edge = makeEdge(parentNodeId, id);
                 setEdges((eds) => [...eds, edge]);
@@ -135,7 +145,6 @@ export function useGraphState() {
         },
         [setNodes, setEdges]
     );
-
     // ── Remove a node and all its connected edges ────────────────────────────
     const removeNode = useCallback(
         (nodeId) => {

@@ -1,7 +1,7 @@
 // src/components/Sidebar.jsx
 import { useState } from "react";
 import {
-    Play, RotateCcw, Circle, ArrowRight,
+    Play, RotateCcw, Circle,
     ChevronDown, Cpu, ListOrdered, LayoutTemplate,
 } from "lucide-react";
 import { createDragGhost } from "./GraphCanvas";
@@ -18,7 +18,6 @@ const PALETTE_ITEMS = [
     { type: "default", label: "Node", color: "bg-gray-500", icon: <Circle size={12} /> },
     { type: "start", label: "Start", color: "bg-emerald-500", icon: <Circle size={12} /> },
     { type: "goal", label: "Goal", color: "bg-rose-500", icon: <Circle size={12} /> },
-    { type: "edge", label: "Edge", color: "bg-violet-500", icon: <ArrowRight size={12} /> },
 ];
 
 // ─── Main Component ───────────────────────────────────────────────────────────
@@ -36,10 +35,9 @@ export default function Sidebar({
     const [algoOpen, setAlgoOpen] = useState(false);
 
     const handleDragStart = (e, type) => {
-        if (type === "edge") return; // edges are drawn on canvas, not dragged
         const ghost = createDragGhost(type);
         document.body.appendChild(ghost);
-        e.dataTransfer.setDragImage(ghost, 24, 24);
+        e.dataTransfer.setDragImage(ghost, 26, 26);
         e.dataTransfer.setData("nodeType", type);
         setTimeout(() => ghost.remove(), 0);
     };
@@ -115,38 +113,38 @@ export default function Sidebar({
                 <p className="text-[11px] text-gray-400 dark:text-gray-500 mb-3">
                     Drag onto the canvas to place nodes
                 </p>
-                <div className="grid grid-cols-2 gap-2">
+
+                <div className="grid grid-cols-3 gap-2">
                     {PALETTE_ITEMS.map((item) => (
                         <div
                             key={item.type}
-                            draggable={item.type !== "edge"}
+                            draggable
                             onDragStart={(e) => handleDragStart(e, item.type)}
-                            className={`
-                flex items-center gap-2 px-3 py-2.5 rounded-lg
+                            className="
+                flex flex-col items-center gap-1.5 px-2 py-3 rounded-lg
                 bg-gray-100 dark:bg-gray-800
                 border border-gray-200 dark:border-gray-700
                 hover:border-violet-400 dark:hover:border-violet-500
                 hover:bg-gray-200 dark:hover:bg-gray-700
+                cursor-grab active:cursor-grabbing
                 transition-all duration-150 select-none
-                ${item.type !== "edge" ? "cursor-grab active:cursor-grabbing" : "cursor-default opacity-50"}
-              `}
+              "
                         >
                             <span className={`
-                w-6 h-6 rounded-full ${item.color}
-                flex items-center justify-center text-white shrink-0
+                w-8 h-8 rounded-full ${item.color}
+                flex items-center justify-center text-white
               `}>
                                 {item.icon}
                             </span>
-                            <span className="text-xs font-medium text-gray-700 dark:text-gray-300">
+                            <span className="text-[11px] font-medium text-gray-700 dark:text-gray-300">
                                 {item.label}
                             </span>
                         </div>
                     ))}
                 </div>
 
-                {/* Edge hint */}
                 <p className="mt-3 text-[10px] text-gray-400 dark:text-gray-500 italic leading-relaxed">
-                    💡 To add edges, drag from the handle dots that appear on node hover.
+                    💡 Hover a node to see handle dots, then drag between them to draw edges.
                 </p>
             </Section>
 
@@ -170,18 +168,6 @@ export default function Sidebar({
                             {name}
                         </button>
                     ))}
-                    <button
-                        onClick={onClear}
-                        className="
-              w-full text-left px-3 py-2 rounded-lg text-xs font-medium
-              text-red-400 dark:text-red-400
-              border border-transparent
-              hover:bg-red-500/10 hover:border-red-400/30
-              transition-all duration-150
-            "
-                    >
-                        🗑 Clear Canvas
-                    </button>
                 </div>
             </Section>
 
@@ -219,7 +205,7 @@ export default function Sidebar({
                     onClick={() => onVisualize?.(selectedAlgo)}
                     className="
             w-full py-2.5 rounded-lg text-sm font-semibold
-            bg-gradient-to-r from-violet-500 to-cyan-500
+            bg-linear-to-r from-violet-500 to-cyan-500
             hover:from-violet-600 hover:to-cyan-600
             text-white shadow-md hover:shadow-violet-500/25
             transition-all duration-200
