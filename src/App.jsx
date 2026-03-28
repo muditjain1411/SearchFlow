@@ -1,5 +1,5 @@
 // src/App.jsx
-import { useState } from "react";
+import { useState, useRef } from "react";
 import Navbar from "./components/Navbar";
 import Sidebar from "./components/Sidebar";
 import GraphCanvas from "./components/GraphCanvas";
@@ -7,19 +7,29 @@ import { useGraphState } from "./hooks/useGraphState";
 
 function App() {
   const [darkMode, setDarkMode] = useState(true);
-  const graph = useGraphState();
   const [steps, setSteps] = useState([]);
+  const graph = useGraphState();
+  const canvasRef = useRef(null);
 
   const handleVisualize = (algorithm) => {
-    // Will call api.js here in the next module
-    console.log("Visualizing with:", algorithm);
-    setSteps([`Starting ${algorithm}...`, "Fetching graph data...", "Sending to backend..."]);
+    console.log("Visualizing:", algorithm);
+    setSteps([`Starting ${algorithm}...`, "Building graph...", "Sending to backend..."]);
+  };
+
+  const handleExport = (mode) => {
+    canvasRef.current?.handleDownload(mode);
   };
 
   return (
     <div className={darkMode ? "dark" : ""}>
       <div className="flex flex-col h-screen w-screen bg-gray-50 dark:bg-gray-950 transition-colors duration-300">
-        <Navbar darkMode={darkMode} toggleTheme={() => setDarkMode(!darkMode)} />
+
+        <Navbar
+          darkMode={darkMode}
+          toggleTheme={() => setDarkMode((d) => !d)}
+          onExport={handleExport}
+        />
+
         <div className="flex flex-1 overflow-hidden">
           <Sidebar
             presetNames={graph.presetNames}
@@ -30,7 +40,9 @@ function App() {
             steps={steps}
             onVisualize={handleVisualize}
           />
+
           <GraphCanvas
+            ref={canvasRef}
             nodes={graph.nodes}
             edges={graph.edges}
             onNodesChange={graph.onNodesChange}
@@ -42,8 +54,10 @@ function App() {
             updateEdgeWeight={graph.updateEdgeWeight}
             updateNodeLabel={graph.updateNodeLabel}
             isWeighted={graph.isWeighted}
+            darkMode={darkMode}
           />
         </div>
+
       </div>
     </div>
   );

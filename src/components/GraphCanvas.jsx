@@ -1,26 +1,21 @@
 // src/components/GraphCanvas.jsx
-import { useRef, useCallback, useState } from "react";
+import { useRef, useCallback, useState, useEffect, forwardRef, useImperativeHandle } from "react";
 import {
-    ReactFlow, Background, Controls, MiniMap,
+    ReactFlow, Background, MiniMap,
     BackgroundVariant, useReactFlow,
-    getNodesBounds, getViewportForBounds,
 } from "@xyflow/react";
-import { toPng, toSvg } from "html-to-image";
+import { toPng } from "html-to-image";
+import { Plus, Minus, Maximize2, GripHorizontal } from "lucide-react";
 import "@xyflow/react/dist/style.css";
 import CustomNode from "./CustomNode";
 import CustomEdge from "./CustomEdge";
-import { Download, Image, Route, GitBranch, Layers, X } from "lucide-react";
 
 const NODE_TYPES = { customNode: CustomNode };
 const EDGE_TYPES = { customEdge: CustomEdge };
 
-// ── Drag ghost ───────────────────────────────────────────────────────────────
+// ── Drag ghost ────────────────────────────────────────────────────────────────
 function createDragGhost(type) {
-    const colorMap = {
-        start: "#10b981",
-        goal: "#f43f5e",
-        default: "#6b7280",
-    };
+    const colorMap = { start: "#10b981", goal: "#f43f5e", default: "#6b7280" };
     const canvas = document.createElement("canvas");
     canvas.width = 52;
     canvas.height = 52;
@@ -42,7 +37,7 @@ function createDragGhost(type) {
 
 export { createDragGhost };
 
-// ── MiniMap node color ───────────────────────────────────────────────────────
+// ── MiniMap node color ────────────────────────────────────────────────────────
 const miniMapNodeColor = (n) => {
     const t = n.data?.type;
     if (t === "start") return "#10b981";
@@ -52,112 +47,111 @@ const miniMapNodeColor = (n) => {
     return "#374151";
 };
 
-// ── Download options config ──────────────────────────────────────────────────
-const DOWNLOAD_OPTIONS = [
-    {
-        id: "full",
-        label: "Full Graph",
-        desc: "All nodes and edges",
-        icon: <GitBranch size={14} />,
-        color: "text-cyan-400",
-    },
-    {
-        id: "path",
-        label: "Shortest Route",
-        desc: "Path nodes/edges only",
-        icon: <Route size={14} />,
-        color: "text-emerald-400",
-    },
-    {
-        id: "traversal",
-        label: "Traversal",
-        desc: "Visited nodes highlighted",
-        icon: <Layers size={14} />,
-        color: "text-violet-400",
-    },
-    {
-        id: "mixed",
-        label: "Mixed View",
-        desc: "Full graph + highlights",
-        icon: <Image size={14} />,
-        color: "text-amber-400",
-    },
-];
+// ── Draggable horizontal controls ─────────────────────────────────────────────
+function FloatingControls({ wrapperRef, darkMode }) {
+    const { zoomIn, zoomOut, fitView } = useReactFlow();
+    const [pos, setPos] = useState({ left: 16, bottom: 16 });
+    const dragging = useRef(false);
+    const startRef = useRef(null);
 
-// ── Download Panel ────────────────────────────────────────────────────────────
-function DownloadPanel({ onDownload, onClose }) {
+    const onMouseDown = (e) => {
+        if (e.target.closest("button")) return;
+        dragging.current = true;
+        startRef.current = {
+            mouseX: e.clientX,
+            mouseY: e.clientY,
+            startLeft: pos.left,
+            startBottom: pos.bottom,
+        };
+        e.preventDefault();
+    };
+
+    useEffect(() => {
+        const onMouseMove = (e) => {
+            if (!dragging.current || !startRef.current) return;
+            const { mouseX, mouseY, startLeft, startBottom } = startRef.current;
+            setPos({
+                left: Math.max(8, startLeft + (e.clientX - mouseX)),
+                bottom: Math.max(8, startBottom - (e.clientY - mouseY)),
+            });
+        };
+        const onMouseUp = () => { dragging.current = false; };
+        window.addEventListener("mousemove", onMouseMove);
+        window.addEventListener("mouseup", onMouseUp);
+        return () => {
+            window.removeEventListener("mousemove", onMouseMove);
+            window.removeEventListener("mouseup", onMouseUp);
+        };
+    }, []);
+
+    const bg = darkMode ? "#111827" : "#ffffff";
+    const border = darkMode ? "#374151" : "#e5e7eb";
+    const gripCl = darkMode ? "#4b5563" : "#9ca3af";
+
     return (
-        <div className="
-      absolute bottom-16 right-3 z-50
-      w-56 rounded-xl overflow-hidden
-      bg-gray-900 border border-gray-700
-      shadow-2xl shadow-black/60
-    ">
-            <div className="flex items-center justify-between px-3 py-2.5 border-b border-gray-700">
-                <span className="text-xs font-semibold text-gray-300 uppercase tracking-wider">
-                    Download as
-                </span>
-                <button onClick={onClose} className="text-gray-500 hover:text-gray-300 transition-colors">
-                    <X size={13} />
-                </button>
-            </div>
-            {DOWNLOAD_OPTIONS.map((opt) => (
-                <button
-                    key={opt.id}
-                    onClick={() => { onDownload(opt.id); onClose(); }}
-                    className="
-            w-full flex items-center gap-3 px-3 py-2.5
-            hover:bg-gray-800 transition-colors duration-150
-            group
-          "
-                >
-                    <span className={`${opt.color} shrink-0`}>{opt.icon}</span>
-                    <div className="text-left">
-                        <p className="text-xs font-medium text-gray-200 group-hover:text-white">
-                            {opt.label}
-                        </p>
-                        <p className="text-[10px] text-gray-500">{opt.desc}</p>
-                    </div>
-                </button>
-            ))}
+        <div
+            className="absolute z-40 flex items-center gap-1 px-2 py-1.5 rounded-xl shadow-lg select-none nodrag nopan cursor-grab active:cursor-grabbing"
+            style={{ left: pos.left, bottom: pos.bottom, background: bg, border: `1px solid ${border}` }}
+            onMouseDown={onMouseDown}
+        >
+            {/* Grip indicator */}
+            <GripHorizontal size={13} color={gripCl} className="mr-0.5 pointer-events-none" />
+
+            <CtrlBtn onClick={() => zoomIn()} title="Zoom in" darkMode={darkMode}><Plus size={13} /></CtrlBtn>
+            <CtrlBtn onClick={() => zoomOut()} title="Zoom out" darkMode={darkMode}><Minus size={13} /></CtrlBtn>
+            <div style={{ width: 1, height: 16, background: border, margin: "0 2px" }} />
+            <CtrlBtn onClick={() => fitView({ padding: 0.2 })} title="Fit view" darkMode={darkMode}><Maximize2 size={13} /></CtrlBtn>
         </div>
     );
 }
 
+function CtrlBtn({ onClick, title, children, darkMode }) {
+    return (
+        <button
+            onClick={onClick}
+            title={title}
+            className="w-7 h-7 rounded-lg flex items-center justify-center transition-colors duration-150"
+            style={{ color: darkMode ? "#9ca3af" : "#6b7280" }}
+            onMouseEnter={(e) => {
+                e.currentTarget.style.background = darkMode ? "#1f2937" : "#f3f4f6";
+                e.currentTarget.style.color = darkMode ? "#ffffff" : "#111827";
+            }}
+            onMouseLeave={(e) => {
+                e.currentTarget.style.background = "transparent";
+                e.currentTarget.style.color = darkMode ? "#9ca3af" : "#6b7280";
+            }}
+        >
+            {children}
+        </button>
+    );
+}
+
 // ── Main Component ────────────────────────────────────────────────────────────
-export default function GraphCanvas({
+const GraphCanvas = forwardRef(function GraphCanvas({
     nodes, edges,
     onNodesChange, onEdgesChange, onConnect,
     addNode, removeNode, removeEdge,
     updateEdgeWeight, updateNodeLabel,
-    isWeighted,
-}) {
+    isWeighted, darkMode,
+}, ref) {
     const reactFlowWrapper = useRef(null);
     const reactFlowInstance = useRef(null);
-    const [showDownload, setShowDownload] = useState(false);
 
-    // Inject callbacks into node data
+    // Expose download to parent via ref
+    useImperativeHandle(ref, () => ({
+        handleDownload,
+    }));
+
     const nodesWithCallbacks = nodes.map((n) => ({
         ...n,
-        data: {
-            ...n.data,
-            onRemove: removeNode,
-            onLabelChange: updateNodeLabel,
-        },
+        data: { ...n.data, onRemove: removeNode, onLabelChange: updateNodeLabel },
     }));
 
-    // Inject callbacks into edge data
     const edgesWithCallbacks = edges.map((e) => ({
         ...e,
-        data: {
-            ...e.data,
-            showWeight: isWeighted,
-            onRemove: removeEdge,
-            onWeightChange: updateEdgeWeight,
-        },
+        data: { ...e.data, showWeight: isWeighted, onRemove: removeEdge, onWeightChange: updateEdgeWeight },
     }));
 
-    // ── Drag handlers ─────────────────────────────────────────────────────
     const onDragOver = useCallback((e) => {
         e.preventDefault();
         e.dataTransfer.dropEffect = "move";
@@ -174,12 +168,9 @@ export default function GraphCanvas({
                 y: e.clientY,
             });
 
-            // Auto-parent: dropped within 50px of existing node center
             const parentNode = nodes.find((n) => {
-                const cx = n.position.x + 28;
-                const cy = n.position.y + 28;
-                const dx = cx - position.x;
-                const dy = cy - position.y;
+                const dx = (n.position.x + 28) - position.x;
+                const dy = (n.position.y + 28) - position.y;
                 return Math.sqrt(dx * dx + dy * dy) < 50;
             });
 
@@ -188,59 +179,44 @@ export default function GraphCanvas({
         [nodes, addNode]
     );
 
-    // ── Download handler ──────────────────────────────────────────────────
+    // ── Download ────────────────────────────────────────────────────────────
     const handleDownload = useCallback(
         async (mode) => {
             const rfViewport = reactFlowWrapper.current?.querySelector(".react-flow__viewport");
             if (!rfViewport) return;
 
-            // Filter which nodes to highlight based on mode
-            const filterNode = (node) => {
-                if (mode === "full" || mode === "mixed") return true;
-                if (mode === "path") return node.data?.animState === "path" || node.data?.type === "start" || node.data?.type === "goal";
-                if (mode === "traversal") return node.data?.animState === "visited" || node.data?.animState === "path";
-                return true;
-            };
-
-            const visibleNodes = nodes.filter(filterNode);
-            const bounds = getNodesBounds(visibleNodes.length > 0 ? visibleNodes : nodes);
-            const padding = 60;
-            const imgWidth = 1200;
-            const imgHeight = 800;
-
             try {
                 const dataUrl = await toPng(rfViewport, {
-                    backgroundColor: "#030712",
-                    width: imgWidth,
-                    height: imgHeight,
-                    style: {
-                        width: imgWidth,
-                        height: imgHeight,
-                        transform: `translate(${padding}px, ${padding}px)`,
-                    },
-                    filter: (node) => {
-                        // Hide React Flow UI chrome in screenshot
-                        if (node.classList?.contains("react-flow__minimap")) return false;
-                        if (node.classList?.contains("react-flow__controls")) return false;
-                        if (node.classList?.contains("react-flow__panel")) return false;
+                    backgroundColor: darkMode ? "#030712" : "#f9fafb",
+                    width: 1400,
+                    height: 900,
+                    filter: (el) => {
+                        if (el.classList?.contains("react-flow__minimap")) return false;
+                        if (el.classList?.contains("react-flow__controls")) return false;
+                        if (el.classList?.contains("react-flow__panel")) return false;
                         return true;
                     },
                 });
-
-                // Trigger download
                 const link = document.createElement("a");
-                link.download = `graph-${mode}-${Date.now()}.png`;
+                link.download = `pathfinder-${mode}-${Date.now()}.png`;
                 link.href = dataUrl;
                 link.click();
             } catch (err) {
                 console.error("Download failed:", err);
             }
         },
-        [nodes]
+        [darkMode]
     );
 
+    const canvasBg = darkMode ? "#030712" : "#f9fafb";
+    const dotColor = darkMode ? "#1f2937" : "#d1d5db";
+
     return (
-        <div ref={reactFlowWrapper} className="relative w-full h-full bg-gray-950">
+        <div
+            ref={reactFlowWrapper}
+            className="relative w-full h-full"
+            style={{ background: canvasBg }}
+        >
             <ReactFlow
                 nodes={nodesWithCallbacks}
                 edges={edgesWithCallbacks}
@@ -255,28 +231,22 @@ export default function GraphCanvas({
                 fitView
                 deleteKeyCode="Delete"
                 proOptions={{ hideAttribution: true }}
-                className="bg-gray-950!"
+                style={{ background: canvasBg }}
             >
                 <Background
                     variant={BackgroundVariant.Dots}
                     gap={24}
                     size={1}
-                    color="#1f2937"
+                    color={dotColor}
                 />
 
-                {/* Controls */}
-                <Controls
-                    className="bg-gray-900! border! border-gray-700! rounded-xl! shadow-xl!"
-                    style={{ bottom: 16, left: 16 }}
-                />
-
-                {/* MiniMap — thin border, tight corner */}
+                {/* MiniMap — no border, tight corner */}
                 <MiniMap
                     nodeColor={miniMapNodeColor}
-                    maskColor="rgba(0,0,0,0.55)"
+                    maskColor={darkMode ? "rgba(0,0,0,0.55)" : "rgba(255,255,255,0.6)"}
                     style={{
-                        background: "#0f172a",
-                        border: "1px solid #1f2937",
+                        background: darkMode ? "#0f172a" : "#f1f5f9",
+                        border: "none",
                         borderRadius: "10px",
                         bottom: 12,
                         right: 12,
@@ -288,34 +258,12 @@ export default function GraphCanvas({
                     zoomable
                 />
 
-                {/* Download button + panel — sits above minimap */}
-                <div
-                    className="absolute z-40"
-                    style={{ bottom: 114, right: 12 }}
-                >
-                    {showDownload && (
-                        <DownloadPanel
-                            onDownload={handleDownload}
-                            onClose={() => setShowDownload(false)}
-                        />
-                    )}
-                    <button
-                        onClick={() => setShowDownload((v) => !v)}
-                        className={`
-              flex items-center gap-2 px-3 py-2 rounded-xl text-xs font-medium
-              border transition-all duration-200 shadow-lg
-              ${showDownload
-                                ? "bg-violet-500 border-violet-400 text-white"
-                                : "bg-gray-900 border-gray-700 text-gray-300 hover:border-violet-500 hover:text-violet-400"
-                            }
-            `}
-                    >
-                        <Download size={13} />
-                        Export
-                    </button>
-                </div>
+                {/* Draggable horizontal controls */}
+                <FloatingControls wrapperRef={reactFlowWrapper} darkMode={darkMode} />
 
             </ReactFlow>
         </div>
     );
-}
+});
+
+export default GraphCanvas;
