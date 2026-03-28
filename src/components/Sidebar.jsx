@@ -2,8 +2,11 @@
 import { useState } from "react";
 import {
     Play, RotateCcw, Circle, ArrowRight,
-    ChevronDown, Cpu, ListOrdered
+    ChevronDown, Cpu, ListOrdered, LayoutTemplate,
 } from "lucide-react";
+import { createDragGhost } from "./GraphCanvas";
+
+// ─── Constants ────────────────────────────────────────────────────────────────
 
 const ALGORITHMS = [
     { group: "Uninformed", items: ["BFS", "DFS", "UCS", "IDDFS", "DLS", "Bidirectional"] },
@@ -12,29 +15,33 @@ const ALGORITHMS = [
 ];
 
 const PALETTE_ITEMS = [
-    { type: "node", label: "Node", color: "bg-cyan-500", icon: <Circle size={14} /> },
-    { type: "start", label: "Start", color: "bg-emerald-500", icon: <Circle size={14} /> },
-    { type: "end", label: "Goal", color: "bg-rose-500", icon: <Circle size={14} /> },
-    { type: "edge", label: "Edge", color: "bg-violet-500", icon: <ArrowRight size={14} /> },
+    { type: "default", label: "Node", color: "bg-gray-500", icon: <Circle size={12} /> },
+    { type: "start", label: "Start", color: "bg-emerald-500", icon: <Circle size={12} /> },
+    { type: "goal", label: "Goal", color: "bg-rose-500", icon: <Circle size={12} /> },
+    { type: "edge", label: "Edge", color: "bg-violet-500", icon: <ArrowRight size={12} /> },
 ];
 
-// Dummy steps for now — will be replaced by API response
-const DEMO_STEPS = [
-    "Initializing graph...",
-    "Enqueue start node A",
-    "Visit A → neighbors: B, C",
-    "Enqueue B, C",
-    "Visit B → neighbors: D",
-];
+// ─── Main Component ───────────────────────────────────────────────────────────
 
-export default function Sidebar() {
+export default function Sidebar({
+    presetNames = [],
+    onLoadPreset,
+    onClear,
+    isWeighted,
+    onToggleWeighted,
+    steps = [],
+    onVisualize,
+}) {
     const [selectedAlgo, setSelectedAlgo] = useState("BFS");
-    const [open, setOpen] = useState(false);
-    const [steps] = useState(DEMO_STEPS);
+    const [algoOpen, setAlgoOpen] = useState(false);
 
     const handleDragStart = (e, type) => {
+        if (type === "edge") return; // edges are drawn on canvas, not dragged
+        const ghost = createDragGhost(type);
+        document.body.appendChild(ghost);
+        e.dataTransfer.setDragImage(ghost, 24, 24);
         e.dataTransfer.setData("nodeType", type);
-        e.dataTransfer.effectAllowed = "move";
+        setTimeout(() => ghost.remove(), 0);
     };
 
     return (
@@ -42,27 +49,31 @@ export default function Sidebar() {
       w-72 shrink-0 h-full flex flex-col
       bg-white dark:bg-gray-900
       border-r border-gray-200 dark:border-gray-800
-      overflow-y-auto
+      overflow-y-auto overflow-x-hidden
     ">
 
-            {/* ── Section 1: Algorithm Selector ── */}
+            {/* ══ 1. ALGORITHM SELECTOR ══════════════════════════════════════════ */}
             <Section icon={<Cpu size={14} />} title="Algorithm">
                 <div className="relative">
                     <button
-                        onClick={() => setOpen(!open)}
+                        onClick={() => setAlgoOpen(!algoOpen)}
                         className="
               w-full flex items-center justify-between px-3 py-2 rounded-lg text-sm
               bg-gray-100 dark:bg-gray-800
               text-gray-800 dark:text-gray-200
               hover:bg-gray-200 dark:hover:bg-gray-700
+              border border-gray-200 dark:border-gray-700
               transition-colors duration-150
             "
                     >
                         <span className="font-medium">{selectedAlgo}</span>
-                        <ChevronDown size={14} className={`transition-transform duration-200 ${open ? "rotate-180" : ""}`} />
+                        <ChevronDown
+                            size={14}
+                            className={`transition-transform duration-200 ${algoOpen ? "rotate-180" : ""}`}
+                        />
                     </button>
 
-                    {open && (
+                    {algoOpen && (
                         <div className="
               absolute z-20 mt-1 w-full rounded-lg shadow-xl overflow-hidden
               bg-white dark:bg-gray-800
@@ -70,17 +81,21 @@ export default function Sidebar() {
             ">
                             {ALGORITHMS.map((group) => (
                                 <div key={group.group}>
-                                    <p className="px-3 py-1.5 text-[10px] uppercase tracking-widest text-gray-400 dark:text-gray-500 bg-gray-50 dark:bg-gray-900/50">
+                                    <p className="
+                    px-3 py-1.5 text-[10px] uppercase tracking-widest
+                    text-gray-400 dark:text-gray-500
+                    bg-gray-50 dark:bg-gray-900/60
+                  ">
                                         {group.group}
                                     </p>
                                     {group.items.map((algo) => (
                                         <button
                                             key={algo}
-                                            onClick={() => { setSelectedAlgo(algo); setOpen(false); }}
+                                            onClick={() => { setSelectedAlgo(algo); setAlgoOpen(false); }}
                                             className={`
                         w-full text-left px-3 py-2 text-sm transition-colors duration-100
                         ${selectedAlgo === algo
-                                                    ? "bg-violet-500/10 text-violet-600 dark:text-violet-400 font-medium"
+                                                    ? "bg-violet-500/10 text-violet-600 dark:text-violet-400 font-semibold"
                                                     : "text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700"
                                                 }
                       `}
@@ -95,27 +110,31 @@ export default function Sidebar() {
                 </div>
             </Section>
 
-            {/* ── Section 2: Drag & Drop Palette ── */}
+            {/* ══ 2. DRAG & DROP PALETTE ════════════════════════════════════════ */}
             <Section icon={<Circle size={14} />} title="Components">
                 <p className="text-[11px] text-gray-400 dark:text-gray-500 mb-3">
-                    Drag onto the canvas to build your graph
+                    Drag onto the canvas to place nodes
                 </p>
                 <div className="grid grid-cols-2 gap-2">
                     {PALETTE_ITEMS.map((item) => (
                         <div
                             key={item.type}
-                            draggable
+                            draggable={item.type !== "edge"}
                             onDragStart={(e) => handleDragStart(e, item.type)}
-                            className="
-                flex items-center gap-2 px-3 py-2 rounded-lg cursor-grab active:cursor-grabbing
+                            className={`
+                flex items-center gap-2 px-3 py-2.5 rounded-lg
                 bg-gray-100 dark:bg-gray-800
-                hover:bg-gray-200 dark:hover:bg-gray-700
                 border border-gray-200 dark:border-gray-700
                 hover:border-violet-400 dark:hover:border-violet-500
+                hover:bg-gray-200 dark:hover:bg-gray-700
                 transition-all duration-150 select-none
-              "
+                ${item.type !== "edge" ? "cursor-grab active:cursor-grabbing" : "cursor-default opacity-50"}
+              `}
                         >
-                            <span className={`w-5 h-5 rounded-full ${item.color} flex items-center justify-center text-white shrink-0`}>
+                            <span className={`
+                w-6 h-6 rounded-full ${item.color}
+                flex items-center justify-center text-white shrink-0
+              `}>
                                 {item.icon}
                             </span>
                             <span className="text-xs font-medium text-gray-700 dark:text-gray-300">
@@ -124,49 +143,129 @@ export default function Sidebar() {
                         </div>
                     ))}
                 </div>
+
+                {/* Edge hint */}
+                <p className="mt-3 text-[10px] text-gray-400 dark:text-gray-500 italic leading-relaxed">
+                    💡 To add edges, drag from the handle dots that appear on node hover.
+                </p>
             </Section>
 
-            {/* ── Section 3: Visualize / Reset ── */}
-            <Section icon={<Play size={14} />} title="Controls">
-                <div className="flex flex-col gap-2">
-                    <button className="
-            w-full py-2.5 rounded-lg text-sm font-semibold
-            bg-linear-to-r from-violet-500 to-cyan-500
-            hover:from-violet-600 hover:to-cyan-600
-            text-white shadow-md hover:shadow-violet-500/25
-            transition-all duration-200 flex items-center justify-center gap-2
-          ">
-                        <Play size={14} /> Visualize
-                    </button>
-                    <button className="
-            w-full py-2 rounded-lg text-sm font-medium
-            bg-gray-100 dark:bg-gray-800
-            hover:bg-gray-200 dark:hover:bg-gray-700
-            text-gray-600 dark:text-gray-400
-            transition-colors duration-150 flex items-center justify-center gap-2
-          ">
-                        <RotateCcw size={13} /> Reset
+            {/* ══ 3. PRESETS ═══════════════════════════════════════════════════ */}
+            <Section icon={<LayoutTemplate size={14} />} title="Presets">
+                <div className="flex flex-col gap-1.5">
+                    {presetNames.map((name) => (
+                        <button
+                            key={name}
+                            onClick={() => onLoadPreset?.(name)}
+                            className="
+                w-full text-left px-3 py-2 rounded-lg text-xs font-medium
+                bg-gray-100 dark:bg-gray-800
+                text-gray-700 dark:text-gray-300
+                border border-transparent
+                hover:bg-violet-500/10 hover:text-violet-600 dark:hover:text-violet-400
+                hover:border-violet-400/30
+                transition-all duration-150
+              "
+                        >
+                            {name}
+                        </button>
+                    ))}
+                    <button
+                        onClick={onClear}
+                        className="
+              w-full text-left px-3 py-2 rounded-lg text-xs font-medium
+              text-red-400 dark:text-red-400
+              border border-transparent
+              hover:bg-red-500/10 hover:border-red-400/30
+              transition-all duration-150
+            "
+                    >
+                        🗑 Clear Canvas
                     </button>
                 </div>
             </Section>
 
-            {/* ── Section 4: Step Log ── */}
+            {/* ══ 4. CONTROLS ══════════════════════════════════════════════════ */}
+            <Section icon={<Play size={14} />} title="Controls">
+
+                {/* Weighted toggle */}
+                <div
+                    onClick={onToggleWeighted}
+                    className="
+            flex items-center justify-between
+            px-3 py-2 rounded-lg mb-3 cursor-pointer
+            bg-gray-100 dark:bg-gray-800
+            hover:bg-gray-200 dark:hover:bg-gray-700
+            transition-colors duration-150
+          "
+                >
+                    <span className="text-xs text-gray-600 dark:text-gray-400 font-medium">
+                        Weighted edges
+                    </span>
+                    <div className={`
+            w-9 h-5 rounded-full relative transition-colors duration-200
+            ${isWeighted ? "bg-violet-500" : "bg-gray-400 dark:bg-gray-600"}
+          `}>
+                        <div className={`
+              absolute top-0.5 w-4 h-4 rounded-full bg-white shadow
+              transition-all duration-200
+              ${isWeighted ? "left-4" : "left-0.5"}
+            `} />
+                    </div>
+                </div>
+
+                {/* Visualize button */}
+                <button
+                    onClick={() => onVisualize?.(selectedAlgo)}
+                    className="
+            w-full py-2.5 rounded-lg text-sm font-semibold
+            bg-gradient-to-r from-violet-500 to-cyan-500
+            hover:from-violet-600 hover:to-cyan-600
+            text-white shadow-md hover:shadow-violet-500/25
+            transition-all duration-200
+            flex items-center justify-center gap-2
+          "
+                >
+                    <Play size={14} /> Visualize
+                </button>
+
+                {/* Reset button */}
+                <button
+                    onClick={onClear}
+                    className="
+            w-full mt-2 py-2 rounded-lg text-sm font-medium
+            bg-gray-100 dark:bg-gray-800
+            hover:bg-gray-200 dark:hover:bg-gray-700
+            text-gray-600 dark:text-gray-400
+            transition-colors duration-150
+            flex items-center justify-center gap-2
+          "
+                >
+                    <RotateCcw size={13} /> Reset
+                </button>
+            </Section>
+
+            {/* ══ 5. STEP LOG ══════════════════════════════════════════════════ */}
             <Section icon={<ListOrdered size={14} />} title="Step Log" grow>
-                <div className="flex flex-col gap-1 overflow-y-auto max-h-56 pr-1">
+                <div className="flex flex-col gap-1 overflow-y-auto max-h-60 pr-1">
                     {steps.length === 0 ? (
-                        <p className="text-[11px] text-gray-400 dark:text-gray-500 italic">
-                            Steps will appear here during visualization...
+                        <p className="text-[11px] text-gray-400 dark:text-gray-500 italic leading-relaxed">
+                            Steps will appear here once you hit Visualize...
                         </p>
                     ) : (
                         steps.map((step, i) => (
                             <div
                                 key={i}
-                                className="flex items-start gap-2 text-[11px] py-1.5 px-2 rounded-md
+                                className="
+                  flex items-start gap-2 px-2 py-1.5 rounded-md text-[11px]
                   bg-gray-50 dark:bg-gray-800/60
-                  text-gray-600 dark:text-gray-400"
+                  text-gray-600 dark:text-gray-400
+                "
                             >
-                                <span className="text-violet-400 font-mono shrink-0">{String(i + 1).padStart(2, "0")}</span>
-                                <span>{step}</span>
+                                <span className="text-violet-400 font-mono shrink-0">
+                                    {String(i + 1).padStart(2, "0")}
+                                </span>
+                                <span className="leading-relaxed">{step}</span>
                             </div>
                         ))
                     )}
@@ -177,17 +276,24 @@ export default function Sidebar() {
     );
 }
 
-// Reusable section wrapper
+// ─── Reusable Section Wrapper ─────────────────────────────────────────────────
+
 function Section({ icon, title, children, grow = false }) {
     return (
-        <div className={`px-4 py-4 border-b border-gray-100 dark:border-gray-800 ${grow ? "flex-1" : ""}`}>
+        <div className={`
+      px-4 py-4
+      border-b border-gray-100 dark:border-gray-800
+      ${grow ? "flex-1 flex flex-col" : ""}
+    `}>
             <div className="flex items-center gap-2 mb-3">
                 <span className="text-violet-500">{icon}</span>
                 <h3 className="text-[11px] font-semibold uppercase tracking-widest text-gray-500 dark:text-gray-400">
                     {title}
                 </h3>
             </div>
-            {children}
+            <div className={grow ? "flex-1 flex flex-col" : ""}>
+                {children}
+            </div>
         </div>
     );
 }
