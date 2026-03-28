@@ -113,7 +113,7 @@ export function useGraphState() {
             const id = generateId();
             const labelMap = { start: "S", goal: "G", default: id.split("_")[1] };
 
-            // ── Enforce single start / single goal ──────────────────────────────
+            // Enforce single start / single goal
             if (nodeType === "start" || nodeType === "goal") {
                 setNodes((nds) =>
                     nds.map((n) =>
@@ -145,6 +145,7 @@ export function useGraphState() {
         },
         [setNodes, setEdges]
     );
+
     // ── Remove a node and all its connected edges ────────────────────────────
     const removeNode = useCallback(
         (nodeId) => {
@@ -170,7 +171,9 @@ export function useGraphState() {
         (edgeId, weight) => {
             setEdges((eds) =>
                 eds.map((e) =>
-                    e.id === edgeId ? { ...e, data: { ...e.data, weight: Number(weight) } } : e
+                    e.id === edgeId
+                        ? { ...e, data: { ...e.data, weight: Number(weight) } }
+                        : e
                 )
             );
         },
@@ -210,12 +213,17 @@ export function useGraphState() {
     );
 
     // ── Serialise graph for API call ─────────────────────────────────────────
+    // ✅ FIX 6: include position so A* / Greedy can compute Euclidean heuristic
     const serializeGraph = useCallback(() => {
         const startNode = nodes.find((n) => n.data.type === "start");
         const goalNode = nodes.find((n) => n.data.type === "goal");
 
         return {
-            nodes: nodes.map((n) => ({ id: n.id, type: n.data.type })),
+            nodes: nodes.map((n) => ({
+                id: n.id,
+                type: n.data.type,
+                position: n.position,   // ✅ needed for h(n) = Euclidean distance
+            })),
             edges: edges.map((e) => ({
                 source: e.source,
                 target: e.target,
@@ -237,15 +245,17 @@ export function useGraphState() {
         // React Flow core
         nodes, edges,
         onNodesChange, onEdgesChange, onConnect,
+        // ✅ FIX 5: export setNodes/setEdges — App.jsx animation system needs them
+        setNodes, setEdges,
         // Node actions
         addNode, removeNode, updateNodeLabel, updateNodeType,
         // Edge actions
         updateEdgeWeight, removeEdge,
         // Graph-level
         loadPreset, serializeGraph, clearGraph,
-        // Weighted mode toggle
+        // Weighted mode
         isWeighted, setIsWeighted,
-        // Preset names (for the UI dropdown)
+        // Preset names
         presetNames: Object.keys(PRESETS),
     };
 }

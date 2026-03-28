@@ -8,6 +8,7 @@ import { createDragGhost } from "./GraphCanvas";
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
+const PRESET_NAMES = ["Simple Graph", "Binary Tree", "Weighted Graph"];
 const ALGORITHMS = [
     { group: "Uninformed", items: ["BFS", "DFS", "UCS", "IDDFS", "DLS", "Bidirectional"] },
     { group: "Informed", items: ["Greedy Best-First", "A*"] },
@@ -22,14 +23,17 @@ const PALETTE_ITEMS = [
 
 // ─── Main Component ───────────────────────────────────────────────────────────
 
-export default function Sidebar({
-    presetNames = [],
-    onLoadPreset,
-    onClear,
+export function Sidebar({
+    nodes,
     isWeighted,
-    onToggleWeighted,
-    steps = [],
+    stepLog,
+    isRunning,
+    speed,
+    onSpeedChange,
     onVisualize,
+    onLoadPreset,
+    onToggleWeighted,
+    onClear,
 }) {
     const [selectedAlgo, setSelectedAlgo] = useState("BFS");
     const [algoOpen, setAlgoOpen] = useState(false);
@@ -151,7 +155,7 @@ export default function Sidebar({
             {/* ══ 3. PRESETS ═══════════════════════════════════════════════════ */}
             <Section icon={<LayoutTemplate size={14} />} title="Presets">
                 <div className="flex flex-col gap-1.5">
-                    {presetNames.map((name) => (
+                    {PRESET_NAMES.map((name) => (
                         <button
                             key={name}
                             onClick={() => onLoadPreset?.(name)}
@@ -200,28 +204,53 @@ export default function Sidebar({
                     </div>
                 </div>
 
+                {/* Speed Control */}
+                <div className="space-y-2 mb-3">
+                    <div className="flex justify-between text-xs text-gray-400">
+                        <span>Speed</span>
+                        <span>{speed < 300 ? "Fast" : speed < 700 ? "Medium" : "Slow"}</span>
+                    </div>
+                    <input
+                        type="range"
+                        min={100}
+                        max={2000}
+                        step={100}
+                        value={speed}
+                        onChange={e => onSpeedChange(Number(e.target.value))}
+                        className="w-full accent-violet-500"
+                    />
+                    <div className="flex justify-between text-xs text-gray-500">
+                        <span>100ms</span>
+                        <span>2000ms</span>
+                    </div>
+                </div>
+
                 {/* Visualize button */}
                 <button
                     onClick={() => onVisualize?.(selectedAlgo)}
+                    disabled={isRunning}
                     className="
             w-full py-2.5 rounded-lg text-sm font-semibold
             bg-linear-to-r from-violet-500 to-cyan-500
             hover:from-violet-600 hover:to-cyan-600
+            disabled:opacity-50 disabled:cursor-not-allowed
             text-white shadow-md hover:shadow-violet-500/25
             transition-all duration-200
             flex items-center justify-center gap-2
           "
                 >
-                    <Play size={14} /> Visualize
+                    <Play size={14} /> {isRunning ? "Running..." : "Visualize"}
                 </button>
 
                 {/* Reset button */}
                 <button
                     onClick={onClear}
+                    disabled={isRunning}
                     className="
             w-full mt-2 py-2 rounded-lg text-sm font-medium
             bg-gray-100 dark:bg-gray-800
             hover:bg-gray-200 dark:hover:bg-gray-700
+            disabled:opacity-50 disabled:cursor-not-allowed
             text-gray-600 dark:text-gray-400
             transition-colors duration-150
             flex items-center justify-center gap-2
@@ -234,12 +263,12 @@ export default function Sidebar({
             {/* ══ 5. STEP LOG ══════════════════════════════════════════════════ */}
             <Section icon={<ListOrdered size={14} />} title="Step Log" grow>
                 <div className="flex flex-col gap-1 overflow-y-auto max-h-60 pr-1">
-                    {steps.length === 0 ? (
+                    {stepLog.length === 0 ? (
                         <p className="text-[11px] text-gray-400 dark:text-gray-500 italic leading-relaxed">
                             Steps will appear here once you hit Visualize...
                         </p>
                     ) : (
-                        steps.map((step, i) => (
+                        stepLog.map((step, i) => (
                             <div
                                 key={i}
                                 className="
