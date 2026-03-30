@@ -1,4 +1,3 @@
-// src/components/GraphCanvas.jsx
 import { useRef, useCallback, useState, useEffect, forwardRef, useImperativeHandle } from "react";
 import {
     ReactFlow, Background, MiniMap,
@@ -13,7 +12,6 @@ import CustomEdge from "./CustomEdge";
 const NODE_TYPES = { customNode: CustomNode };
 const EDGE_TYPES = { customEdge: CustomEdge };
 
-// ── Drag ghost ────────────────────────────────────────────────────────────────
 function createDragGhost(type) {
     const colorMap = { start: "#10b981", goal: "#f43f5e", default: "#6b7280" };
     const canvas = document.createElement("canvas");
@@ -37,7 +35,6 @@ function createDragGhost(type) {
 
 export { createDragGhost };
 
-// ── MiniMap node color ────────────────────────────────────────────────────────
 const miniMapNodeColor = (n) => {
     const t = n.data?.type;
     if (t === "start") return "#10b981";
@@ -47,7 +44,6 @@ const miniMapNodeColor = (n) => {
     return "#374151";
 };
 
-// ── Draggable horizontal controls ─────────────────────────────────────────────
 function FloatingControls({ wrapperRef, darkMode }) {
     const { zoomIn, zoomOut, fitView } = useReactFlow();
     const [pos, setPos] = useState({ left: 16, bottom: 16 });
@@ -126,8 +122,7 @@ function CtrlBtn({ onClick, title, children, darkMode }) {
     );
 }
 
-// ── Traversal Overlay ─────────────────────────────────────────────────────────
-// Draws numbered dotted arrows along visited edges directly on the canvas.
+
 function TraversalOverlay({ nodes, edges, lastResult }) {
     const { x, y, zoom } = useViewport();
     if (!lastResult) return null;
@@ -135,15 +130,12 @@ function TraversalOverlay({ nodes, edges, lastResult }) {
     const { visitedOrder } = lastResult;
     if (!visitedOrder || visitedOrder.length < 2) return null;
 
-    // label → flow-space centre position
     const labelToPos = {};
     nodes.forEach(n => {
         labelToPos[n.data.label] = { x: n.position.x + 28, y: n.position.y + 28 };
     });
 
-    // Build segments, deduplicating repeated edges.
-    // For each unique (A,B) pair, track how many times it has appeared
-    // so we can stagger the perpendicular offset to avoid overlap.
+
     const pairCount = {};
     const segments = [];
 
@@ -183,21 +175,19 @@ function TraversalOverlay({ nodes, edges, lastResult }) {
                 const mx = (s.x + e2.x) / 2;
                 const my = (s.y + e2.y) / 2;
 
-                // Perpendicular direction
                 const dx = e2.x - s.x;
                 const dy = e2.y - s.y;
                 const len = Math.sqrt(dx * dx + dy * dy) || 1;
                 const perpX = -dy / len;
                 const perpY = dx / len;
 
-                // Stagger offset: 1st pass = 12px, 2nd = -18px, 3rd = 24px…
                 const baseOffset = 12;
                 const sign = occurence % 2 === 1 ? 1 : -1;
                 const magnitude = baseOffset + Math.floor((occurence - 1) / 2) * 12;
                 const ox = perpX * sign * magnitude;
                 const oy = perpY * sign * magnitude;
 
-                // Shorten line to avoid overlapping node circles (r≈28px in flow space → zoom)
+
                 const shortenPx = 20;
                 const ratio = shortenPx / len;
                 const sx1 = s.x + dx * ratio + ox;
@@ -231,7 +221,6 @@ function TraversalOverlay({ nodes, edges, lastResult }) {
     );
 }
 
-// ── Canvas Legend ─────────────────────────────────────────────────────────────
 const LEGEND_ITEMS = [
     { color: "#10b981", label: "Start" },
     { color: "#f43f5e", label: "Goal" },
@@ -241,20 +230,19 @@ const LEGEND_ITEMS = [
 ];
 
 function CanvasLegend({ darkMode, canvasRef }) {
-    // Use left/top so drag deltas map 1-to-1 with mouse movement
-    // We compute initial position lazily from canvas size on first render
+
     const [pos, setPos] = useState(null);
     const dragging = useRef(false);
     const startRef = useRef(null);
 
-    // Set initial position once canvas is mounted
+
     useEffect(() => {
         if (pos !== null) return;
         const el = canvasRef?.current;
         if (!el) { setPos({ left: 0, top: 0 }); return; }
         const { width, height } = el.getBoundingClientRect();
         // bottom-right: 12px from right edge, 226px from bottom (above minimap)
-        setPos({ left: width - 12 - 120, top: height - 226 - 130 });
+        setPos({ left: width - 45 - 120, top: height - 170 - 130 });
     }, [canvasRef, pos]);
 
     const onMouseDown = (e) => {
@@ -298,7 +286,7 @@ function CanvasLegend({ darkMode, canvasRef }) {
 
     return (
         <div
-            className="absolute z-40 nodrag nopan select-none"
+            className="absolute w-35 z-40 nodrag nopan select-none"
             style={{ left: pos.left, top: pos.top }}
             data-legend="true"
             onMouseDown={onMouseDown}
@@ -308,7 +296,7 @@ function CanvasLegend({ darkMode, canvasRef }) {
                 style={{ background: bg, border: `1px solid ${border}` }}
             >
                 <p style={{
-                    fontSize: 9, fontWeight: 700,
+                    fontSize: 12, fontWeight: 700,
                     letterSpacing: "0.12em", textTransform: "uppercase",
                     color: title, marginBottom: 2,
                 }}>
@@ -317,11 +305,11 @@ function CanvasLegend({ darkMode, canvasRef }) {
                 {LEGEND_ITEMS.map(({ color, label }) => (
                     <div key={label} className="flex items-center gap-2.5">
                         <span style={{
-                            width: 13, height: 13, borderRadius: "50%",
+                            width: 14, height: 14, borderRadius: "50%",
                             background: color, flexShrink: 0,
                             boxShadow: `0 0 6px ${color}88`,
                         }} />
-                        <span style={{ fontSize: 11.5, color: text, fontWeight: 500 }}>
+                        <span style={{ fontSize: 11.8, color: text, fontWeight: 500 }}>
                             {label}
                         </span>
                     </div>
@@ -331,7 +319,7 @@ function CanvasLegend({ darkMode, canvasRef }) {
     );
 }
 
-// ── Result Banner ─────────────────────────────────────────────────────────────
+
 function ResultBanner({ result, darkMode }) {
     const [expanded, setExpanded] = useState(false);
     if (!result) return null;
@@ -352,24 +340,24 @@ function ResultBanner({ result, darkMode }) {
                 className="flex flex-col items-center rounded-2xl shadow-xl overflow-hidden"
                 style={{ background: bg, border: `1px solid ${border}`, backdropFilter: "blur(10px)", minWidth: 220 }}
             >
-                {/* ── Always-visible compact header ── */}
+
                 <button
                     onClick={() => setExpanded(v => !v)}
                     className="flex items-center gap-2 px-3 py-2 w-full hover:opacity-80 transition-opacity"
                     style={{ cursor: "pointer" }}
                 >
-                    <span style={{ fontSize: 9, fontWeight: 700, letterSpacing: "0.1em", textTransform: "uppercase", color: "#7c3aed" }}>
+                    <span style={{ fontSize: 12, fontWeight: 700, letterSpacing: "0.1em", textTransform: "uppercase", color: "#7c3aed" }}>
                         {algo}
                     </span>
                     <span style={{ flex: 1 }} />
-                    {/* Inline path pill */}
+
                     <div className="flex items-center gap-0.5">
                         {pathLabels.map((label, i) => (
                             <div key={i} className="flex items-center gap-0.5">
                                 <span
                                     className="flex items-center justify-center rounded-full font-bold text-white"
                                     style={{
-                                        width: 20, height: 20, fontSize: 9, flexShrink: 0,
+                                        width: 20, height: 20, fontSize: 12, flexShrink: 0,
                                         background: i === 0 ? "#10b981" : i === pathLabels.length - 1 ? "#f43f5e" : "#06b6d4",
                                     }}
                                 >{label}</span>
@@ -381,17 +369,16 @@ function ResultBanner({ result, darkMode }) {
                             </div>
                         ))}
                     </div>
-                    <span style={{ fontSize: 9, color: muted, marginLeft: 4 }}>cost {cost}</span>
-                    {/* Chevron */}
+                    <span style={{ fontSize: 12, color: muted, marginLeft: 4 }}>cost {cost}</span>
+
                     <svg width="10" height="10" viewBox="0 0 10 10" fill="none" style={{ marginLeft: 4, transition: "transform 0.2s", transform: expanded ? "rotate(180deg)" : "rotate(0deg)" }}>
                         <path d="M2 3.5l3 3 3-3" stroke={muted} strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round" />
                     </svg>
                 </button>
 
-                {/* ── Expanded traversal section ── */}
                 {expanded && visitedOrder && visitedOrder.length > 0 && (
                     <div style={{ borderTop: `1px solid ${subtle}`, padding: "8px 12px 10px" }}>
-                        <p style={{ fontSize: 8, fontWeight: 700, letterSpacing: "0.1em", textTransform: "uppercase", color: "#7c3aed", marginBottom: 6, textAlign: "center" }}>
+                        <p style={{ fontSize: 12, fontWeight: 700, letterSpacing: "0.1em", textTransform: "uppercase", color: "#7c3aed", marginBottom: 6, textAlign: "center" }}>
                             Traversal Order
                         </p>
                         <div className="flex items-end gap-0.5 flex-wrap justify-center">
@@ -400,11 +387,11 @@ function ResultBanner({ result, darkMode }) {
                                 return (
                                     <div key={i} className="flex items-center gap-0.5">
                                         <div className="flex flex-col items-center gap-0.5">
-                                            <span style={{ fontSize: 7, color: muted, fontWeight: 600, lineHeight: 1 }}>{i + 1}</span>
+                                            <span style={{ fontSize: 12, color: muted, fontWeight: 600, lineHeight: 1 }}>{i + 1}</span>
                                             <span
                                                 className="flex items-center justify-center rounded-full font-bold text-white"
                                                 style={{
-                                                    width: 20, height: 20, fontSize: 9, flexShrink: 0,
+                                                    width: 20, height: 20, fontSize: 12, flexShrink: 0,
                                                     background: onPath ? "#7c3aed" : "#374151",
                                                     border: onPath ? "1.5px solid #a78bfa" : `1.5px solid ${subtle}`,
                                                 }}
@@ -420,8 +407,8 @@ function ResultBanner({ result, darkMode }) {
                             })}
                         </div>
                         <div className="flex justify-center gap-3 mt-1.5">
-                            <span style={{ fontSize: 8, color: muted }}><span style={{ color: "#7c3aed" }}>●</span> on-path</span>
-                            <span style={{ fontSize: 8, color: muted }}><span style={{ color: "#374151" }}>●</span> explored</span>
+                            <span style={{ fontSize: 12, color: muted }}><span style={{ color: "#7c3aed" }}>●</span> on-path</span>
+                            <span style={{ fontSize: 12, color: muted }}><span style={{ color: "#374151" }}>●</span> explored</span>
                         </div>
                     </div>
                 )}
@@ -430,9 +417,6 @@ function ResultBanner({ result, darkMode }) {
     );
 }
 
-
-// ── Main Component
-// ── Main Component ────────────────────────────────────────────────────────────
 const GraphCanvas = forwardRef(function GraphCanvas({
     nodes, edges,
     onNodesChange, onEdgesChange, onConnect,
@@ -443,7 +427,6 @@ const GraphCanvas = forwardRef(function GraphCanvas({
     const reactFlowWrapper = useRef(null);
     const reactFlowInstance = useRef(null);
 
-    // Expose download to parent via ref
     useImperativeHandle(ref, () => ({
         handleDownload,
     }));
@@ -479,22 +462,16 @@ const GraphCanvas = forwardRef(function GraphCanvas({
         [addNode]
     );
 
-    // ── Download ────────────────────────────────────────────────────────────
-    // mode: "full" | "path" | "traversal" | "mixed"
-    // allNodes/allEdges: current React state passed in from App so we can
-    // compute which elements to highlight WITHOUT touching React state.
-    // We restyle cloned DOM nodes via onCloneNode — zero flicker.
     const handleDownload = useCallback(
         async (mode, allNodes = [], allEdges = []) => {
             const rfViewport = reactFlowWrapper.current?.querySelector(".react-flow__viewport");
             if (!rfViewport) return;
 
-            // Build id → desired animState maps based on mode
             const nodeAnimMap = {};
             const edgeAnimMap = {};
 
             if (mode === "full") {
-                // all null — clean graph, no highlights
+
             } else if (mode === "path") {
                 allNodes.forEach(n => { if (n.data.animState === "path") nodeAnimMap[n.id] = "path"; });
                 allEdges.forEach(e => { if (e.data.animState === "path") edgeAnimMap[e.id] = "path"; });
@@ -506,12 +483,11 @@ const GraphCanvas = forwardRef(function GraphCanvas({
                     if (e.data.animState === "visited" || e.data.animState === "path") edgeAnimMap[e.id] = "visited";
                 });
             } else {
-                // mixed — use current animState as-is
+
                 allNodes.forEach(n => { if (n.data.animState) nodeAnimMap[n.id] = n.data.animState; });
                 allEdges.forEach(e => { if (e.data.animState) edgeAnimMap[e.id] = e.data.animState; });
             }
 
-            // Color maps matching CustomNode TYPE_STYLES and CustomEdge colors
             const NODE_COLORS = {
                 path: { bg: "#06b6d4", border: "#22d3ee" },
                 visited: { bg: "#7c3aed", border: "#8b5cf6" },
@@ -536,7 +512,7 @@ const GraphCanvas = forwardRef(function GraphCanvas({
                         return true;
                     },
                     onCloneNode: (node) => {
-                        // Restyle React Flow node wrappers
+
                         const nodeId = node.dataset?.id;
                         if (nodeId && node.classList?.contains("react-flow__node")) {
                             const desired = nodeAnimMap[nodeId];
@@ -550,7 +526,7 @@ const GraphCanvas = forwardRef(function GraphCanvas({
                                 circle.style.borderColor = colors.border;
                             }
                         }
-                        // Restyle edges — find SVG paths inside edge groups
+
                         if (node.classList?.contains("react-flow__edge")) {
                             const edgeId = node.dataset?.id;
                             if (edgeId) {
@@ -606,7 +582,6 @@ const GraphCanvas = forwardRef(function GraphCanvas({
                     color={dotColor}
                 />
 
-                {/* MiniMap — no border, tight corner */}
                 <MiniMap
                     nodeColor={miniMapNodeColor}
                     maskColor={darkMode ? "rgba(0,0,0,0.55)" : "rgba(255,255,255,0.6)"}
@@ -624,16 +599,12 @@ const GraphCanvas = forwardRef(function GraphCanvas({
                     zoomable
                 />
 
-                {/* Traversal overlay — dotted numbered arrows on visited edges */}
                 <TraversalOverlay nodes={nodes} edges={edges} lastResult={lastResult} />
 
-                {/* Result banner — top-center, shown after visualization */}
                 <ResultBanner result={lastResult} darkMode={darkMode} />
 
-                {/* Draggable horizontal controls */}
                 <FloatingControls wrapperRef={reactFlowWrapper} darkMode={darkMode} />
 
-                {/* Draggable legend — left/top coords so drag tracks mouse correctly */}
                 <CanvasLegend darkMode={darkMode} canvasRef={reactFlowWrapper} />
 
             </ReactFlow>

@@ -1,4 +1,3 @@
-// src/hooks/useGraphState.js
 import { useCallback, useState } from "react";
 import {
     useNodesState,
@@ -7,7 +6,6 @@ import {
     MarkerType,
 } from "@xyflow/react";
 
-// ─── Preset Graphs ────────────────────────────────────────────────────────────
 const PRESETS = {
     "Simple Graph": {
         nodes: [
@@ -80,7 +78,6 @@ const PRESETS = {
     },
 };
 
-// ─── Unique label generator ───────────────────────────────────────────────────
 const LETTERS = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
 
 function nextUniqueLabel(existingLabels, nodeType) {
@@ -99,7 +96,6 @@ function nextUniqueLabel(existingLabels, nodeType) {
     return `N${Date.now()}`;
 }
 
-// ─── Default edge factory ─────────────────────────────────────────────────────
 const makeEdge = (source, target, weight = 1, sourcePosition, targetPosition) => ({
     id: `${source}-${target}-${Date.now()}`,
     source,
@@ -111,13 +107,13 @@ const makeEdge = (source, target, weight = 1, sourcePosition, targetPosition) =>
     data: { weight },
 });
 
-// ─── Hook ─────────────────────────────────────────────────────────────────────
+
 export function useGraphState() {
     const [nodes, setNodes, onNodesChange] = useNodesState([]);
     const [edges, setEdges, onEdgesChange] = useEdgesState([]);
     const [isWeighted, setIsWeighted] = useState(false);
 
-    // ── Load a named preset ──────────────────────────────────────────────────
+  
     const loadPreset = useCallback((presetName) => {
         const preset = PRESETS[presetName];
         if (!preset) return;
@@ -131,7 +127,7 @@ export function useGraphState() {
             ...e,
             type: "customEdge",
             markerEnd: { type: MarkerType.ArrowClosed, width: 18, height: 18 },
-            // ✅ Pass explicit handle IDs through so CustomEdge renders clean beziers
+            
             sourceHandle: e.sourceHandle ?? null,
             targetHandle: e.targetHandle ?? null,
         }));
@@ -156,7 +152,7 @@ export function useGraphState() {
 
             setNodes((nds) => {
                 const newLabel = nextUniqueLabel(nds.map(n => n.data.label), nodeType);
-                // ✅ Clear all animStates on existing nodes + add new node clean
+                
                 return [
                     ...nds.map(n => ({ ...n, data: { ...n.data, animState: null } })),
                     {
@@ -168,7 +164,7 @@ export function useGraphState() {
                 ];
             });
 
-            // ✅ Clear all edge animStates too
+            
             setEdges(eds => eds.map(e => ({ ...e, data: { ...e.data, animState: null } })));
 
             return id;
@@ -213,7 +209,6 @@ export function useGraphState() {
         [setEdges, setNodes]  // ← add setNodes to deps
     );
 
-    // ── Update edge weight ───────────────────────────────────────────────────
     const updateEdgeWeight = useCallback(
         (edgeId, weight) => {
             setEdges((eds) =>
@@ -237,10 +232,9 @@ export function useGraphState() {
             // ✅ Clear node animStates too
             setNodes(nds => nds.map(n => ({ ...n, data: { ...n.data, animState: null } })));
         },
-        [setEdges, setNodes]  // ← add setNodes to deps
+        [setEdges, setNodes] 
     );
 
-    // ── Update node label ────────────────────────────────────────────────────
     const updateNodeLabel = useCallback(
         (nodeId, label) => {
             setNodes((nds) =>
@@ -252,7 +246,6 @@ export function useGraphState() {
         [setNodes]
     );
 
-    // ── Change node type ─────────────────────────────────────────────────────
     const updateNodeType = useCallback(
         (nodeId, type) => {
             setNodes((nds) =>
@@ -264,7 +257,6 @@ export function useGraphState() {
         [setNodes]
     );
 
-    // ── Serialise graph for API call ─────────────────────────────────────────
     const serializeGraph = useCallback(() => {
         const startNode = nodes.find((n) => n.data.type === "start");
         const goalNode = nodes.find((n) => n.data.type === "goal");
@@ -286,7 +278,6 @@ export function useGraphState() {
         };
     }, [nodes, edges]);
 
-    // ── Clear the canvas ─────────────────────────────────────────────────────
     const clearGraph = useCallback(() => {
         setNodes([]);
         setEdges([]);

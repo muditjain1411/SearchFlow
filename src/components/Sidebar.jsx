@@ -1,4 +1,3 @@
-// src/components/Sidebar.jsx
 import { useState, useEffect, useRef } from "react";
 import {
     Play, RotateCcw, Circle, Lock,
@@ -6,7 +5,6 @@ import {
 } from "lucide-react";
 import { createDragGhost } from "./GraphCanvas";
 
-// ─── Constants ────────────────────────────────────────────────────────────────
 
 const PRESET_NAMES = ["Simple Graph", "Binary Tree", "Weighted Graph"];
 const ALGORITHMS = [
@@ -21,10 +19,7 @@ const PALETTE_ITEMS = [
     { type: "goal", label: "Goal", color: "bg-rose-500", icon: <Circle size={12} /> },
 ];
 
-// ─── Algorithm metadata ───────────────────────────────────────────────────────
-// timeExpr/spaceExpr: functions({ V, E, b, d, l }) → string shown in info card
-// weighted: true  → auto-enable & lock toggle ON
-//           false → auto-disable & lock toggle OFF
+
 
 const ALGO_INFO = {
     "BFS": {
@@ -99,12 +94,10 @@ const ALGO_INFO = {
     },
 };
 
-// Algorithms that require weighted ON (lock toggle ON)
 const WEIGHTED_REQUIRED = new Set(["UCS", "Greedy Best-First", "A*"]);
-// Algorithms that must be unweighted (lock toggle OFF)
+
 const WEIGHTED_FORBIDDEN = new Set(["BFS", "DFS", "IDDFS", "DLS", "Bidirectional", "Hill Climbing", "Simulated Annealing"]);
 
-// ─── AlgoInfoCard ─────────────────────────────────────────────────────────────
 
 function AlgoInfoCard({ algo, nodes, edges, dlsDepthLimit }) {
     const info = ALGO_INFO[algo];
@@ -121,20 +114,17 @@ function AlgoInfoCard({ algo, nodes, edges, dlsDepthLimit }) {
     const spaceStr = info.spaceExpr({ V, E, b, d, l });
 
     return (
-        <div className="mt-2 rounded-lg overflow-hidden bg-violet-500/5 border border-violet-500/20 text-[11px] leading-relaxed">
+        <div className="mt-2 rounded-lg overflow-hidden bg-violet-500/5 border border-violet-500/20 text-[12px] leading-relaxed">
 
-            {/* Description */}
             <div className="px-3 pt-2.5 pb-2 text-gray-600 dark:text-gray-400">
                 {info.description}
             </div>
 
-            {/* Complexity — live substituted values */}
             <div className="px-3 py-2 border-t border-violet-500/10 space-y-1.5">
                 <ComplexityRow label="Time" value={timeStr} />
                 <ComplexityRow label="Space" value={spaceStr} />
             </div>
 
-            {/* Badges */}
             <div className="flex gap-3 px-3 py-2 border-t border-violet-500/10">
                 <StatBadge
                     label="Optimal"
@@ -148,7 +138,6 @@ function AlgoInfoCard({ algo, nodes, edges, dlsDepthLimit }) {
                 />
             </div>
 
-            {/* Use when */}
             <div className="px-3 py-2 border-t border-violet-500/10 text-gray-500 dark:text-gray-500 italic">
                 <span className="not-italic font-semibold text-violet-500 dark:text-violet-400">
                     Use when:{" "}
@@ -177,7 +166,6 @@ function StatBadge({ label, value, valueColor }) {
     );
 }
 
-// ─── Main Component ───────────────────────────────────────────────────────────
 
 export function Sidebar({
     nodes,
@@ -191,20 +179,27 @@ export function Sidebar({
     onLoadPreset,
     onToggleWeighted,
     onClear,
+    onAlgoChange,
 }) {
     const [selectedAlgo, setSelectedAlgo] = useState("BFS");
     const [algoOpen, setAlgoOpen] = useState(false);
     const [dlsDepthLimit, setDlsDepthLimit] = useState(5);
     const [showInfo, setShowInfo] = useState(false);
 
-    // ── Auto-control weighted toggle when algo changes ────────────────────────
+    const handleAlgoSelect = (algo) => {
+        setSelectedAlgo(algo);
+        setAlgoOpen(false);
+        onAlgoChange?.();
+    };
+
+
     useEffect(() => {
         if (WEIGHTED_REQUIRED.has(selectedAlgo) && !isWeighted) {
             onToggleWeighted();   // force ON
         } else if (WEIGHTED_FORBIDDEN.has(selectedAlgo) && isWeighted) {
             onToggleWeighted();   // force OFF
         }
-        // eslint-disable-next-line react-hooks/exhaustive-deps
+
     }, [selectedAlgo]);
 
     const weightedLocked = WEIGHTED_REQUIRED.has(selectedAlgo) || WEIGHTED_FORBIDDEN.has(selectedAlgo);
@@ -219,14 +214,13 @@ export function Sidebar({
 
     return (
         <aside className="
-            w-72 shrink-0 h-full flex flex-col
+            w-82 shrink-0 h-full flex flex-col
             bg-white dark:bg-gray-900
             border-r border-gray-200 dark:border-gray-800
             overflow-y-auto overflow-x-hidden
         ">
 
-            {/* ══ 1. ALGORITHM SELECTOR ══════════════════════════════════════════ */}
-            <Section icon={<Cpu size={14} />} title="Algorithm">
+            <Section icon={<Cpu size={18} />} title="Algorithm">
 
                 <div className="flex items-center gap-2">
                     <div className="relative flex-1">
@@ -243,7 +237,7 @@ export function Sidebar({
                         >
                             <span className="font-medium">{selectedAlgo}</span>
                             <ChevronDown
-                                size={14}
+                                size={18}
                                 className={`transition-transform duration-200 ${algoOpen ? "rotate-180" : ""}`}
                             />
                         </button>
@@ -257,7 +251,7 @@ export function Sidebar({
                                 {ALGORITHMS.map((group) => (
                                     <div key={group.group}>
                                         <p className="
-                                            px-3 py-1.5 text-[10px] uppercase tracking-widest
+                                            px-3 py-1.5 text-[12px] uppercase tracking-widest
                                             text-gray-400 dark:text-gray-500
                                             bg-gray-50 dark:bg-gray-900/60
                                         ">
@@ -267,8 +261,7 @@ export function Sidebar({
                                             <button
                                                 key={algo}
                                                 onClick={() => {
-                                                    setSelectedAlgo(algo);
-                                                    setAlgoOpen(false);
+                                                    handleAlgoSelect(algo);
                                                     setShowInfo(false);
                                                 }}
                                                 className={`
@@ -288,12 +281,11 @@ export function Sidebar({
                         )}
                     </div>
 
-                    {/* ⓘ toggle button */}
                     <button
                         onClick={() => setShowInfo(prev => !prev)}
                         title="Algorithm info"
                         className={`
-                            w-8 h-8 shrink-0 rounded-lg flex items-center justify-center
+                            w-10 h-10 shrink-0 rounded-lg flex items-center justify-center
                             border transition-all duration-150
                             ${showInfo
                                 ? "bg-violet-500/10 border-violet-400/50 text-violet-500 dark:text-violet-400"
@@ -301,11 +293,10 @@ export function Sidebar({
                             }
                         `}
                     >
-                        <Info size={14} />
+                        <Info size={18} />
                     </button>
                 </div>
 
-                {/* Info card with live graph stats */}
                 {showInfo && (
                     <AlgoInfoCard
                         algo={selectedAlgo}
@@ -317,9 +308,8 @@ export function Sidebar({
 
             </Section>
 
-            {/* ══ 2. DRAG & DROP PALETTE ════════════════════════════════════════ */}
-            <Section icon={<Circle size={14} />} title="Components">
-                <p className="text-[11px] text-gray-400 dark:text-gray-500 mb-3">
+            <Section icon={<Circle size={18} />} title="Components">
+                <p className="text-[12px] text-gray-400 dark:text-gray-500 mb-3">
                     Drag onto the canvas to place nodes
                 </p>
 
@@ -339,22 +329,24 @@ export function Sidebar({
                                 transition-all duration-150 select-none
                             "
                         >
-                            <span className={`w-8 h-8 rounded-full ${item.color} flex items-center justify-center text-white`}>
+                            <span className={`w-10 h-10 rounded-full ${item.color} flex items-center justify-center text-white`}>
                                 {item.icon}
                             </span>
-                            <span className="text-[11px] font-medium text-gray-700 dark:text-gray-300">
+                            <span className="text-[12px] font-medium text-gray-700 dark:text-gray-300">
                                 {item.label}
                             </span>
                         </div>
                     ))}
                 </div>
 
-                <p className="mt-3 text-[10px] text-gray-400 dark:text-gray-500 italic leading-relaxed">
+                <p className="mt-3 text-[12px] text-gray-400 dark:text-gray-500 italic leading-relaxed">
+                    💡 Drag and Drop a node on canvas to use.
+                </p>
+                <p className="mt-3 text-[12px] text-gray-400 dark:text-gray-500 italic leading-relaxed">
                     💡 Hover a node to see handle dots, then drag between them to draw edges.
                 </p>
             </Section>
 
-            {/* ══ 3. PRESETS ═══════════════════════════════════════════════════ */}
             <Section icon={<LayoutTemplate size={14} />} title="Presets">
                 <div className="flex flex-col gap-1.5">
                     {PRESET_NAMES.map((name) => (
@@ -377,10 +369,8 @@ export function Sidebar({
                 </div>
             </Section>
 
-            {/* ══ 4. CONTROLS ══════════════════════════════════════════════════ */}
-            <Section icon={<Play size={14} />} title="Controls">
+            <Section icon={<Play size={18} />} title="Controls">
 
-                {/* Weighted toggle — locked when algo forces it */}
                 <div
                     onClick={weightedLocked ? undefined : onToggleWeighted}
                     className={`
@@ -393,11 +383,11 @@ export function Sidebar({
                     `}
                 >
                     <div className="flex items-center gap-1.5">
-                        <span className="text-xs text-gray-600 dark:text-gray-400 font-medium">
+                        <span className="text-sm text-gray-600 dark:text-gray-400 font-medium">
                             Weighted edges
                         </span>
                         {weightedLocked && (
-                            <Lock size={10} className="text-gray-400 dark:text-gray-500" />
+                            <Lock size={12} className="text-gray-400 dark:text-gray-500" />
                         )}
                     </div>
                     <div className={`
@@ -412,7 +402,6 @@ export function Sidebar({
                     </div>
                 </div>
 
-                {/* DLS depth limit */}
                 {selectedAlgo === "DLS" && (
                     <div className="
                         flex items-center justify-between px-3 py-2 rounded-lg mb-3
@@ -445,7 +434,6 @@ export function Sidebar({
                     </div>
                 )}
 
-                {/* Speed slider */}
                 <div className="space-y-2 mb-3">
                     <div className="flex justify-between text-xs text-gray-400">
                         <span>Speed</span>
@@ -466,7 +454,6 @@ export function Sidebar({
                     </div>
                 </div>
 
-                {/* Visualize */}
                 <button
                     onClick={() => onVisualize?.(selectedAlgo, dlsDepthLimit)}
                     disabled={isRunning}
@@ -480,10 +467,9 @@ export function Sidebar({
                         flex items-center justify-center gap-2
                     "
                 >
-                    <Play size={14} /> {isRunning ? "Running..." : "Visualize"}
+                    <Play size={18} /> {isRunning ? "Running..." : "Visualize"}
                 </button>
 
-                {/* Reset */}
                 <button
                     onClick={onClear}
                     disabled={isRunning}
@@ -497,12 +483,11 @@ export function Sidebar({
                         flex items-center justify-center gap-2
                     "
                 >
-                    <RotateCcw size={13} /> Reset
+                    <RotateCcw size={18} /> Reset
                 </button>
             </Section>
 
-            {/* ══ 5. STEP LOG ══════════════════════════════════════════════════ */}
-            <Section icon={<ListOrdered size={14} />} title="Step Log" grow>
+            <Section icon={<ListOrdered size={18} />} title="Step Log" grow>
                 <StepLog entries={stepLog} />
             </Section>
 
@@ -510,7 +495,6 @@ export function Sidebar({
     );
 }
 
-// ─── StepLog ─────────────────────────────────────────────────────────────────
 
 function classifyStep(text) {
     if (!text) return "default";
@@ -541,14 +525,14 @@ const STEP_STYLES = {
 function StepLog({ entries }) {
     const bottomRef = useRef(null);
 
-    // Auto-scroll to bottom whenever entries change
+    
     useEffect(() => {
         bottomRef.current?.scrollIntoView({ behavior: "smooth" });
     }, [entries]);
 
     if (entries.length === 0) {
         return (
-            <p className="text-[11px] text-gray-400 dark:text-gray-500 italic leading-relaxed">
+            <p className="text-[14px] text-gray-400 dark:text-gray-500 italic leading-relaxed">
                 Steps will appear here once you hit Visualize...
             </p>
         );
@@ -557,7 +541,7 @@ function StepLog({ entries }) {
     return (
         <div className="flex flex-col gap-0.5 overflow-y-auto flex-1 pr-1">
             {entries.map((entry, i) => {
-                // Strip leading "N. " index prefix if present
+                
                 const text = entry.replace(/^\d+\.\s*/, "");
                 const kind = classifyStep(text);
                 const s = STEP_STYLES[kind];
@@ -572,7 +556,7 @@ function StepLog({ entries }) {
                             ${isHeader ? "font-medium" : ""}
                         `}
                     >
-                        {/* Coloured dot indicator */}
+
                         <span className={`mt-1 w-1.5 h-1.5 rounded-full shrink-0 ${s.dot}`} />
                         <span className={`leading-relaxed ${s.text}`}>{text}</span>
                     </div>
@@ -583,7 +567,6 @@ function StepLog({ entries }) {
     );
 }
 
-// ─── Reusable Section Wrapper ─────────────────────────────────────────────────
 
 function Section({ icon, title, children, grow = false }) {
     return (
@@ -594,7 +577,7 @@ function Section({ icon, title, children, grow = false }) {
         `}>
             <div className="flex items-center gap-2 mb-3">
                 <span className="text-violet-500">{icon}</span>
-                <h3 className="text-[11px] font-semibold uppercase tracking-widest text-gray-500 dark:text-gray-400">
+                <h3 className="text-[14px] font-semibold uppercase tracking-widest text-gray-500 dark:text-gray-400">
                     {title}
                 </h3>
             </div>

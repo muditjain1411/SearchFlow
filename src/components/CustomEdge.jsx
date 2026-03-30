@@ -1,18 +1,15 @@
-// src/components/CustomEdge.jsx
+
 import { useState } from "react";
 import { BaseEdge, EdgeLabelRenderer, getBezierPath, Position } from "@xyflow/react";
 import { X } from "lucide-react";
 
-// Infer the best source/target positions from actual handle coordinates.
-// Uses a 2:1 ratio threshold — only picks Left/Right when clearly more horizontal.
-// This gives clean diagonal edges for tree layouts and straight horizontal/vertical
-// edges when nodes are aligned.
+
 function inferPositions(sourceX, sourceY, targetX, targetY) {
     const dx = Math.abs(targetX - sourceX);
     const dy = Math.abs(targetY - sourceY);
 
     if (dx > dy * 2) {
-        // Clearly horizontal — use Left/Right
+       
         return targetX > sourceX
             ? { src: Position.Right, tgt: Position.Left }
             : { src: Position.Left, tgt: Position.Right };
@@ -23,7 +20,7 @@ function inferPositions(sourceX, sourceY, targetX, targetY) {
             ? { src: Position.Bottom, tgt: Position.Top }
             : { src: Position.Top, tgt: Position.Bottom };
     }
-    // Near-diagonal fallback — Bottom/Top
+
     return targetY > sourceY
         ? { src: Position.Bottom, tgt: Position.Top }
         : { src: Position.Top, tgt: Position.Bottom };
@@ -37,8 +34,6 @@ export default function CustomEdge({
     const [editing, setEditing] = useState(false);
     const [weight, setWeight] = useState(data?.weight ?? 1);
 
-    // User-drawn edges have stored sourcePosition/targetPosition from the drag.
-    // Preset edges don't — infer from handle coordinates.
     const { src, tgt } = (sourcePosition && targetPosition)
         ? { src: sourcePosition, tgt: targetPosition }
         : inferPositions(sourceX, sourceY, targetX, targetY);

@@ -1,4 +1,3 @@
-// src/components/CustomNode.jsx
 import { useState, useRef } from "react";
 import { Handle, Position } from "@xyflow/react";
 import { X, Check, Pencil } from "lucide-react";
@@ -12,14 +11,12 @@ const TYPE_STYLES = {
     path: "bg-cyan-500    border-cyan-400    text-white shadow-cyan-500/40",
 };
 
-// Glow ring shown during animation states
 const ANIM_GLOW = {
     visited: "ring-2 ring-violet-400/50",
     frontier: "ring-2 ring-amber-400/50",
     path: "ring-2 ring-cyan-400/60",
 };
 
-// Handle style — hidden until hover
 const HANDLE_BASE = `
     !w-3 !h-3 !rounded-full
     !bg-violet-400 !border-2 !border-violet-300
@@ -27,8 +24,6 @@ const HANDLE_BASE = `
     !transition-opacity !duration-200
 `;
 
-// Target handles are transparent — they just provide the drop zone,
-// the visible dot comes from the source handle stacked at the same position
 const HANDLE_TARGET = `
     !w-3 !h-3 !rounded-full !opacity-0 !border-0 !bg-transparent
 `;
@@ -62,7 +57,7 @@ export default function CustomNode({ id, data, selected }) {
                 }
             `}
         >
-            {/* Delete button */}
+
             <button
                 onClick={() => data.onRemove?.(id)}
                 className={`
@@ -76,7 +71,6 @@ export default function CustomNode({ id, data, selected }) {
                 <X size={10} />
             </button>
 
-            {/* Edit button */}
             <button
                 onClick={() => {
                     setEditing(true);
@@ -93,7 +87,6 @@ export default function CustomNode({ id, data, selected }) {
                 <Pencil size={9} />
             </button>
 
-            {/* Label / inline edit */}
             {editing ? (
                 <div className="flex flex-col items-center gap-0.5">
                     <input
@@ -113,7 +106,6 @@ export default function CustomNode({ id, data, selected }) {
                 <span className="select-none pointer-events-none">{data.label}</span>
             )}
 
-            {/* Type badge — theme-aware color */}
             {(data.type === "start" || data.type === "goal") && (
                 <span className="
                     absolute -bottom-5 left-1/2 -translate-x-1/2
@@ -125,7 +117,6 @@ export default function CustomNode({ id, data, selected }) {
                 </span>
             )}
 
-            {/* Each position has source + target handle so any direction connects */}
             {[Position.Top, Position.Bottom, Position.Left, Position.Right].map((pos) => (
                 <span key={pos}>
                     <Handle type="source" position={pos} id={`${pos}-src`} className={HANDLE_BASE} />

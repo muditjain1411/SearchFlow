@@ -1,4 +1,3 @@
-# backend/routes/algorithm_routes.py
 from flask import Blueprint, request, jsonify
 from models.graph_validator import validate_payload
 from algorithms import bfs, dfs, ucs, iddfs, dls, bidirectional
@@ -54,7 +53,6 @@ def run_algorithm():
     start     = data["start"]
     goal      = data["goal"]
 
-    # Build id → label map (fallback to id if label missing)
     label_map = {n["id"]: n.get("label", n["id"]) for n in nodes}
 
     runner = ALGORITHM_MAP.get(algorithm)
@@ -68,7 +66,6 @@ def run_algorithm():
         else:
             result = runner(nodes, edges, start, goal)
 
-        # Humanise only the display messages — keep id arrays intact for animation
         result = _humanise_messages(result, label_map)
 
         return jsonify(result), 200

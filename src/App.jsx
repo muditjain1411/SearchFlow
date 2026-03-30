@@ -33,15 +33,6 @@ export default function App() {
     setEdges,
   } = useGraphState();
 
-  const handleGraphEdit = useCallback(() => {
-    if (animationRef.current) clearTimeout(animationRef.current);
-    setIsRunning(false);
-    setStepLog([]);
-    setLastResult(null);
-  }, []);
-
-  
-
   // ─── Dark mode ────────────────────────────────────────────────────────────
   const handleToggleDark = useCallback(() => {
     setDarkMode(prev => {
@@ -64,6 +55,15 @@ export default function App() {
     setNodes(nds => nds.map(n => ({ ...n, data: { ...n.data, animState: null } })));
     setEdges(eds => eds.map(e => ({ ...e, data: { ...e.data, animState: null } })));
   }, [setNodes, setEdges]);
+
+  // ─── Clear result + anim when user edits the graph ───────────────────────
+  const handleGraphEdit = useCallback(() => {
+    if (animationRef.current) clearTimeout(animationRef.current);
+    setIsRunning(false);
+    setStepLog([]);
+    setLastResult(null);
+    resetAnimState();
+  }, [resetAnimState]);
 
   // ─── Apply a single step to the canvas ───────────────────────────────────
   const applyStep = useCallback((step) => {
@@ -183,7 +183,26 @@ export default function App() {
     }
   }, [isRunning, speed, nodes, serializeGraph, resetAnimState, applyStep, applyFinalPath]);
 
-  // ─── Clear ─────────────────────────────────────────────────────────────────
+  // ─── Wrap graph-mutating actions to clear result on edit ─────────────────
+  const handleAddNode = useCallback((type, pos) => {
+    handleGraphEdit();
+    addNode(type, pos);
+  }, [handleGraphEdit, addNode]);
+
+  const handleRemoveNode = useCallback((id) => {
+    handleGraphEdit();
+    removeNode(id);
+  }, [handleGraphEdit, removeNode]);
+
+  const handleRemoveEdge = useCallback((id) => {
+    handleGraphEdit();
+    removeEdge(id);
+  }, [handleGraphEdit, removeEdge]);
+
+  const handleLoadPreset = useCallback((name) => {
+    handleGraphEdit();
+    loadPreset(name);
+  }, [handleGraphEdit, loadPreset]);
   const handleClear = useCallback(() => {
     if (animationRef.current) clearTimeout(animationRef.current);
     setIsRunning(false);
@@ -214,9 +233,10 @@ export default function App() {
             speed={speed}
             onSpeedChange={setSpeed}
             onVisualize={handleVisualize}
-            onLoadPreset={loadPreset}
+            onLoadPreset={handleLoadPreset}
             onToggleWeighted={useCallback(() => setIsWeighted(prev => !prev), [])}
             onClear={handleClear}
+            onAlgoChange={handleGraphEdit}
           />
 
           <GraphCanvas
@@ -225,16 +245,23 @@ export default function App() {
             edges={edges}
             darkMode={darkMode}
             lastResult={lastResult}
-            onNodesChange={(changes) => { onNodesChange(changes); }}
-            onEdgesChange={(changes) => { onEdgesChange(changes); }}
-            onConnect={onConnect}
-            addNode={addNode}
-            removeNode={removeNode}
-            removeEdge={removeEdge}
+            onNodesChange={(changes) => {
+              const structural = changes.some(c => c.type === "remove" || c.type === "add");
+              if (structural) handleGraphEdit();
+              onNodesChange(changes);
+            }}
+            onEdgesChange={(changes) => {
+              const structural = changes.some(c => c.type === "remove" || c.type === "add");
+              if (structural) handleGraphEdit();
+              onEdgesChange(changes);
+            }}
+            onConnect={(params) => { handleGraphEdit(); onConnect(params); }}
+            addNode={handleAddNode}
+            removeNode={handleRemoveNode}
+            removeEdge={handleRemoveEdge}
             updateEdgeWeight={updateEdgeWeight}
             updateNodeLabel={updateNodeLabel}
             isWeighted={isWeighted}
-            
           />
         </div>
 

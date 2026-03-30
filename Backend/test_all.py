@@ -1,4 +1,3 @@
-# backend/test_all.py
 import requests
 
 BASE_URL = "http://localhost:5000/api/run"
@@ -11,7 +10,6 @@ NODES = [
     {"id": "E", "position": {"x": 200, "y": 100}},
 ]
 
-# ✅ FIX: flat format matching frontend serializeGraph output
 EDGES = [
     {"source": "A", "target": "B", "weight": 1},
     {"source": "B", "target": "C", "weight": 1},

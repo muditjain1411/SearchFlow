@@ -1,4 +1,3 @@
-// src/components/Navbar.jsx
 import { useState } from "react";
 import { Sun, Moon, Share2, Download, GitBranch, Route, Layers, Image, X } from "lucide-react";
 
@@ -14,35 +13,33 @@ export default function Navbar({ darkMode, toggleTheme, onExport }) {
 
     return (
         <nav className="
-      h-14 px-6 flex items-center justify-between shrink-0 relative z-50
+      h-16 px-6 flex items-center justify-between shrink-0 relative z-50
       bg-white dark:bg-gray-900
       border-b border-gray-200 dark:border-gray-800
       shadow-sm
     ">
-            {/* ── Logo ── */}
+
             <div className="flex items-center gap-3">
-                <div className="w-8 h-8 rounded-lg bg-linear-to-br from-violet-500 to-cyan-400 flex items-center justify-center shadow-md">
+                <div className="w-10 h-10 rounded-lg bg-linear-to-br from-violet-500 to-cyan-400 flex items-center justify-center shadow-md">
                     <Share2 size={16} className="text-white rotate-90" />
                 </div>
                 <div className="flex flex-col leading-none">
-                    <span className="text-sm font-bold tracking-tight text-gray-900 dark:text-white">
-                        PathFinder
+                    <span className="text-3xl font-bold tracking-tight text-gray-900 dark:text-white">
+                        SearchFlow
                     </span>
-                    <span className="text-[10px] text-gray-400 dark:text-gray-500 tracking-widest uppercase">
-                        Algorithm Visualizer
+                    <span className="text-[12px] text-gray-400 dark:text-gray-500 tracking-widest uppercase">
+                        Search Algorithm Visualizer
                     </span>
                 </div>
             </div>
 
-            {/* ── Right actions ── */}
             <div className="flex items-center gap-2">
 
-                {/* Export button + dropdown */}
                 <div className="relative">
                     <button
                         onClick={() => setShowExport((v) => !v)}
                         className={`
-              flex items-center gap-2 h-9 px-3 rounded-lg text-xs font-medium
+              flex items-center gap-2 h-10 px-3 rounded-lg text-sm font-medium
               border transition-all duration-200
               ${showExport
                                 ? "bg-violet-500 border-violet-400 text-white"
@@ -50,7 +47,7 @@ export default function Navbar({ darkMode, toggleTheme, onExport }) {
                             }
             `}
                     >
-                        <Download size={13} />
+                        <Download size={16} />
                         Export
                     </button>
 
@@ -62,14 +59,14 @@ export default function Navbar({ darkMode, toggleTheme, onExport }) {
               shadow-2xl shadow-black/20 dark:shadow-black/60
             ">
                             <div className="flex items-center justify-between px-3 py-2 border-b border-gray-100 dark:border-gray-700">
-                                <span className="text-[10px] font-semibold uppercase tracking-widest text-gray-400">
+                                <span className="text-[12px] font-semibold uppercase tracking-widest text-gray-400">
                                     Download as
                                 </span>
                                 <button
                                     onClick={() => setShowExport(false)}
                                     className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 transition-colors"
                                 >
-                                    <X size={12} />
+                                    <X size={16} />
                                 </button>
                             </div>
 
@@ -98,11 +95,10 @@ export default function Navbar({ darkMode, toggleTheme, onExport }) {
                     )}
                 </div>
 
-                {/* Theme toggle */}
                 <button
                     onClick={toggleTheme}
                     className="
-            w-9 h-9 rounded-lg flex items-center justify-center
+            w-10 h-10 rounded-lg flex items-center justify-center
             bg-gray-100 dark:bg-gray-800
             hover:bg-gray-200 dark:hover:bg-gray-700
             text-gray-600 dark:text-gray-300
@@ -111,7 +107,7 @@ export default function Navbar({ darkMode, toggleTheme, onExport }) {
           "
                     aria-label="Toggle theme"
                 >
-                    {darkMode ? <Sun size={15} /> : <Moon size={15} />}
+                    {darkMode ? <Sun size={16} /> : <Moon size={16} />}
                 </button>
             </div>
         </nav>
