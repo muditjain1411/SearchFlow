@@ -16,5 +16,10 @@ CORS(app, origins=[app.config['frontend_url']])
 
 app.register_blueprint(algorithm_bp)
 
+
+@app.route('/')
+def health_check():
+    return {"status": "Backend is running!"}, 200
+
 if __name__ == "__main__":
     app.run(debug=True, port=5000)
