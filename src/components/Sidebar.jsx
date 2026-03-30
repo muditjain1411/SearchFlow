@@ -1,8 +1,8 @@
 // src/components/Sidebar.jsx
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
 import {
-    Play, RotateCcw, Circle,
-    ChevronDown, Cpu, ListOrdered, LayoutTemplate, Layers,
+    Play, RotateCcw, Circle, Lock,
+    ChevronDown, Cpu, ListOrdered, LayoutTemplate, Layers, Info,
 } from "lucide-react";
 import { createDragGhost } from "./GraphCanvas";
 
@@ -21,10 +21,167 @@ const PALETTE_ITEMS = [
     { type: "goal", label: "Goal", color: "bg-rose-500", icon: <Circle size={12} /> },
 ];
 
+// ─── Algorithm metadata ───────────────────────────────────────────────────────
+// timeExpr/spaceExpr: functions({ V, E, b, d, l }) → string shown in info card
+// weighted: true  → auto-enable & lock toggle ON
+//           false → auto-disable & lock toggle OFF
+
+const ALGO_INFO = {
+    "BFS": {
+        description: "Explores all neighbours level by level, guaranteeing the shortest path by edge count.",
+        timeExpr: ({ V, E }) => `O(V+E) = O(${V}+${E}) = O(${V + E})`,
+        spaceExpr: ({ V }) => `O(V) = O(${V})`,
+        optimal: true, weighted: false,
+        useWhen: "Unweighted graphs where fewest hops matter.",
+    },
+    "DFS": {
+        description: "Dives deep along each branch before backtracking. Fast but may miss the optimal path.",
+        timeExpr: ({ V, E }) => `O(V+E) = O(${V}+${E}) = O(${V + E})`,
+        spaceExpr: ({ V }) => `O(V) = O(${V})`,
+        optimal: false, weighted: false,
+        useWhen: "Maze solving, cycle detection, or when any path is acceptable.",
+    },
+    "UCS": {
+        description: "Expands the lowest-cost frontier node first, guaranteeing the cheapest path.",
+        timeExpr: ({ V, E }) => `O((V+E) log V) = O(${V + E} × log ${V} ≈ ${Math.round((V + E) * Math.log2(Math.max(V, 2)))})`,
+        spaceExpr: ({ V }) => `O(V) = O(${V})`,
+        optimal: true, weighted: true,
+        useWhen: "Weighted graphs where total cost must be minimised.",
+    },
+    "IDDFS": {
+        description: "Runs DFS iteratively with increasing depth limits — DFS memory efficiency with BFS optimality.",
+        timeExpr: ({ b, d }) => `O(b^d) = O(${b}^${d}) ≈ O(${Math.round(Math.pow(b, d))})`,
+        spaceExpr: ({ d }) => `O(d) = O(${d})`,
+        optimal: true, weighted: false,
+        useWhen: "Memory-constrained environments needing an optimal unweighted path.",
+    },
+    "DLS": {
+        description: "DFS capped at a user-defined depth limit. Will not find paths deeper than the limit.",
+        timeExpr: ({ b, l }) => `O(b^l) = O(${b}^${l}) ≈ O(${Math.round(Math.pow(b, l))})`,
+        spaceExpr: ({ l }) => `O(b×l) = O(${l})`,
+        optimal: false, weighted: false,
+        useWhen: "When the solution depth is roughly known in advance.",
+    },
+    "Bidirectional": {
+        description: "Runs two simultaneous BFS searches from start and goal, meeting in the middle.",
+        timeExpr: ({ b, d }) => `O(b^(d/2)) = O(${b}^${Math.ceil(d / 2)}) ≈ O(${Math.round(Math.pow(b, Math.ceil(d / 2)))})`,
+        spaceExpr: ({ b, d }) => `O(b^(d/2)) ≈ O(${Math.round(Math.pow(b, Math.ceil(d / 2)))})`,
+        optimal: true, weighted: false,
+        useWhen: "Large unweighted graphs where full BFS would be too slow.",
+    },
+    "Greedy Best-First": {
+        description: "Always expands the node closest to the goal by heuristic h(n). Fast but not optimal.",
+        timeExpr: ({ V, E }) => `O((V+E) log V) = O(${V + E} × log ${V} ≈ ${Math.round((V + E) * Math.log2(Math.max(V, 2)))})`,
+        spaceExpr: ({ V }) => `O(V) = O(${V})`,
+        optimal: false, weighted: true,
+        useWhen: "When speed matters more than path quality.",
+    },
+    "A*": {
+        description: "Combines actual cost g(n) and heuristic h(n) into f(n)=g+h. Optimal when heuristic is admissible.",
+        timeExpr: ({ V, E }) => `O((V+E) log V) = O(${V + E} × log ${V} ≈ ${Math.round((V + E) * Math.log2(Math.max(V, 2)))})`,
+        spaceExpr: ({ V }) => `O(V) = O(${V})`,
+        optimal: true, weighted: true,
+        useWhen: "Best general-purpose weighted pathfinding.",
+    },
+    "Hill Climbing": {
+        description: "Greedily moves to the best neighbouring node. Can get permanently stuck at local optima.",
+        timeExpr: ({ V }) => `O(V) = O(${V}) per restart`,
+        spaceExpr: () => `O(1) — constant`,
+        optimal: false, weighted: false,
+        useWhen: "Quick approximations; demonstrating local search limitations.",
+    },
+    "Simulated Annealing": {
+        description: "Like hill climbing but occasionally accepts worse moves to escape local optima via a cooling schedule.",
+        timeExpr: () => `O(iterations) = O(1000) fixed`,
+        spaceExpr: () => `O(1) — constant`,
+        optimal: false, weighted: false,
+        useWhen: "Optimisation problems where escaping local optima is critical.",
+    },
+};
+
+// Algorithms that require weighted ON (lock toggle ON)
+const WEIGHTED_REQUIRED = new Set(["UCS", "Greedy Best-First", "A*"]);
+// Algorithms that must be unweighted (lock toggle OFF)
+const WEIGHTED_FORBIDDEN = new Set(["BFS", "DFS", "IDDFS", "DLS", "Bidirectional", "Hill Climbing", "Simulated Annealing"]);
+
+// ─── AlgoInfoCard ─────────────────────────────────────────────────────────────
+
+function AlgoInfoCard({ algo, nodes, edges, dlsDepthLimit }) {
+    const info = ALGO_INFO[algo];
+    if (!info) return null;
+
+    const V = nodes.length;
+    const E = edges.length;
+    // Estimate branching factor & depth from graph shape
+    const b = Math.max(2, Math.round(E / Math.max(V, 1)));
+    const d = Math.max(1, Math.round(Math.log2(Math.max(V, 2))));
+    const l = dlsDepthLimit;
+
+    const timeStr = info.timeExpr({ V, E, b, d, l });
+    const spaceStr = info.spaceExpr({ V, E, b, d, l });
+
+    return (
+        <div className="mt-2 rounded-lg overflow-hidden bg-violet-500/5 border border-violet-500/20 text-[11px] leading-relaxed">
+
+            {/* Description */}
+            <div className="px-3 pt-2.5 pb-2 text-gray-600 dark:text-gray-400">
+                {info.description}
+            </div>
+
+            {/* Complexity — live substituted values */}
+            <div className="px-3 py-2 border-t border-violet-500/10 space-y-1.5">
+                <ComplexityRow label="Time" value={timeStr} />
+                <ComplexityRow label="Space" value={spaceStr} />
+            </div>
+
+            {/* Badges */}
+            <div className="flex gap-3 px-3 py-2 border-t border-violet-500/10">
+                <StatBadge
+                    label="Optimal"
+                    value={info.optimal ? "Yes" : "No"}
+                    valueColor={info.optimal ? "text-emerald-500" : "text-rose-400"}
+                />
+                <StatBadge
+                    label="Weighted"
+                    value={info.weighted ? "Required" : "Ignored"}
+                    valueColor={info.weighted ? "text-cyan-500" : "text-gray-400 dark:text-gray-500"}
+                />
+            </div>
+
+            {/* Use when */}
+            <div className="px-3 py-2 border-t border-violet-500/10 text-gray-500 dark:text-gray-500 italic">
+                <span className="not-italic font-semibold text-violet-500 dark:text-violet-400">
+                    Use when:{" "}
+                </span>
+                {info.useWhen}
+            </div>
+        </div>
+    );
+}
+
+function ComplexityRow({ label, value }) {
+    return (
+        <div className="flex items-start gap-2">
+            <span className="shrink-0 text-gray-400 dark:text-gray-500 w-9">{label}:</span>
+            <span className="font-mono text-violet-600 dark:text-violet-400 break-all">{value}</span>
+        </div>
+    );
+}
+
+function StatBadge({ label, value, valueColor }) {
+    return (
+        <div className="flex items-center gap-1">
+            <span className="text-gray-400 dark:text-gray-500">{label}:</span>
+            <span className={`font-semibold ${valueColor}`}>{value}</span>
+        </div>
+    );
+}
+
 // ─── Main Component ───────────────────────────────────────────────────────────
 
 export function Sidebar({
     nodes,
+    edges,
     isWeighted,
     stepLog,
     isRunning,
@@ -37,7 +194,20 @@ export function Sidebar({
 }) {
     const [selectedAlgo, setSelectedAlgo] = useState("BFS");
     const [algoOpen, setAlgoOpen] = useState(false);
-    const [dlsDepthLimit, setDlsDepthLimit] = useState(5); // ← 6b
+    const [dlsDepthLimit, setDlsDepthLimit] = useState(5);
+    const [showInfo, setShowInfo] = useState(false);
+
+    // ── Auto-control weighted toggle when algo changes ────────────────────────
+    useEffect(() => {
+        if (WEIGHTED_REQUIRED.has(selectedAlgo) && !isWeighted) {
+            onToggleWeighted();   // force ON
+        } else if (WEIGHTED_FORBIDDEN.has(selectedAlgo) && isWeighted) {
+            onToggleWeighted();   // force OFF
+        }
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [selectedAlgo]);
+
+    const weightedLocked = WEIGHTED_REQUIRED.has(selectedAlgo) || WEIGHTED_FORBIDDEN.has(selectedAlgo);
 
     const handleDragStart = (e, type) => {
         const ghost = createDragGhost(type);
@@ -49,68 +219,102 @@ export function Sidebar({
 
     return (
         <aside className="
-      w-72 shrink-0 h-full flex flex-col
-      bg-white dark:bg-gray-900
-      border-r border-gray-200 dark:border-gray-800
-      overflow-y-auto overflow-x-hidden
-    ">
+            w-72 shrink-0 h-full flex flex-col
+            bg-white dark:bg-gray-900
+            border-r border-gray-200 dark:border-gray-800
+            overflow-y-auto overflow-x-hidden
+        ">
 
             {/* ══ 1. ALGORITHM SELECTOR ══════════════════════════════════════════ */}
             <Section icon={<Cpu size={14} />} title="Algorithm">
-                <div className="relative">
-                    <button
-                        onClick={() => setAlgoOpen(!algoOpen)}
-                        className="
-              w-full flex items-center justify-between px-3 py-2 rounded-lg text-sm
-              bg-gray-100 dark:bg-gray-800
-              text-gray-800 dark:text-gray-200
-              hover:bg-gray-200 dark:hover:bg-gray-700
-              border border-gray-200 dark:border-gray-700
-              transition-colors duration-150
-            "
-                    >
-                        <span className="font-medium">{selectedAlgo}</span>
-                        <ChevronDown
-                            size={14}
-                            className={`transition-transform duration-200 ${algoOpen ? "rotate-180" : ""}`}
-                        />
-                    </button>
 
-                    {algoOpen && (
-                        <div className="
-              absolute z-20 mt-1 w-full rounded-lg shadow-xl overflow-hidden
-              bg-white dark:bg-gray-800
-              border border-gray-200 dark:border-gray-700
-            ">
-                            {ALGORITHMS.map((group) => (
-                                <div key={group.group}>
-                                    <p className="
-                    px-3 py-1.5 text-[10px] uppercase tracking-widest
-                    text-gray-400 dark:text-gray-500
-                    bg-gray-50 dark:bg-gray-900/60
-                  ">
-                                        {group.group}
-                                    </p>
-                                    {group.items.map((algo) => (
-                                        <button
-                                            key={algo}
-                                            onClick={() => { setSelectedAlgo(algo); setAlgoOpen(false); }}
-                                            className={`
-                        w-full text-left px-3 py-2 text-sm transition-colors duration-100
-                        ${selectedAlgo === algo
-                                                    ? "bg-violet-500/10 text-violet-600 dark:text-violet-400 font-semibold"
-                                                    : "text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700"
-                                                }
-                      `}
-                                        >
-                                            {algo}
-                                        </button>
-                                    ))}
-                                </div>
-                            ))}
-                        </div>
-                    )}
+                <div className="flex items-center gap-2">
+                    <div className="relative flex-1">
+                        <button
+                            onClick={() => setAlgoOpen(!algoOpen)}
+                            className="
+                                w-full flex items-center justify-between px-3 py-2 rounded-lg text-sm
+                                bg-gray-100 dark:bg-gray-800
+                                text-gray-800 dark:text-gray-200
+                                hover:bg-gray-200 dark:hover:bg-gray-700
+                                border border-gray-200 dark:border-gray-700
+                                transition-colors duration-150
+                            "
+                        >
+                            <span className="font-medium">{selectedAlgo}</span>
+                            <ChevronDown
+                                size={14}
+                                className={`transition-transform duration-200 ${algoOpen ? "rotate-180" : ""}`}
+                            />
+                        </button>
+
+                        {algoOpen && (
+                            <div className="
+                                absolute z-20 mt-1 w-full rounded-lg shadow-xl overflow-hidden
+                                bg-white dark:bg-gray-800
+                                border border-gray-200 dark:border-gray-700
+                            ">
+                                {ALGORITHMS.map((group) => (
+                                    <div key={group.group}>
+                                        <p className="
+                                            px-3 py-1.5 text-[10px] uppercase tracking-widest
+                                            text-gray-400 dark:text-gray-500
+                                            bg-gray-50 dark:bg-gray-900/60
+                                        ">
+                                            {group.group}
+                                        </p>
+                                        {group.items.map((algo) => (
+                                            <button
+                                                key={algo}
+                                                onClick={() => {
+                                                    setSelectedAlgo(algo);
+                                                    setAlgoOpen(false);
+                                                    setShowInfo(false);
+                                                }}
+                                                className={`
+                                                    w-full text-left px-3 py-2 text-sm transition-colors duration-100
+                                                    ${selectedAlgo === algo
+                                                        ? "bg-violet-500/10 text-violet-600 dark:text-violet-400 font-semibold"
+                                                        : "text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700"
+                                                    }
+                                                `}
+                                            >
+                                                {algo}
+                                            </button>
+                                        ))}
+                                    </div>
+                                ))}
+                            </div>
+                        )}
+                    </div>
+
+                    {/* ⓘ toggle button */}
+                    <button
+                        onClick={() => setShowInfo(prev => !prev)}
+                        title="Algorithm info"
+                        className={`
+                            w-8 h-8 shrink-0 rounded-lg flex items-center justify-center
+                            border transition-all duration-150
+                            ${showInfo
+                                ? "bg-violet-500/10 border-violet-400/50 text-violet-500 dark:text-violet-400"
+                                : "bg-gray-100 dark:bg-gray-800 border-gray-200 dark:border-gray-700 text-gray-400 dark:text-gray-500 hover:text-violet-500 hover:border-violet-400/50"
+                            }
+                        `}
+                    >
+                        <Info size={14} />
+                    </button>
                 </div>
+
+                {/* Info card with live graph stats */}
+                {showInfo && (
+                    <AlgoInfoCard
+                        algo={selectedAlgo}
+                        nodes={nodes}
+                        edges={edges ?? []}
+                        dlsDepthLimit={dlsDepthLimit}
+                    />
+                )}
+
             </Section>
 
             {/* ══ 2. DRAG & DROP PALETTE ════════════════════════════════════════ */}
@@ -126,19 +330,16 @@ export function Sidebar({
                             draggable
                             onDragStart={(e) => handleDragStart(e, item.type)}
                             className="
-                flex flex-col items-center gap-1.5 px-2 py-3 rounded-lg
-                bg-gray-100 dark:bg-gray-800
-                border border-gray-200 dark:border-gray-700
-                hover:border-violet-400 dark:hover:border-violet-500
-                hover:bg-gray-200 dark:hover:bg-gray-700
-                cursor-grab active:cursor-grabbing
-                transition-all duration-150 select-none
-              "
+                                flex flex-col items-center gap-1.5 px-2 py-3 rounded-lg
+                                bg-gray-100 dark:bg-gray-800
+                                border border-gray-200 dark:border-gray-700
+                                hover:border-violet-400 dark:hover:border-violet-500
+                                hover:bg-gray-200 dark:hover:bg-gray-700
+                                cursor-grab active:cursor-grabbing
+                                transition-all duration-150 select-none
+                            "
                         >
-                            <span className={`
-                w-8 h-8 rounded-full ${item.color}
-                flex items-center justify-center text-white
-              `}>
+                            <span className={`w-8 h-8 rounded-full ${item.color} flex items-center justify-center text-white`}>
                                 {item.icon}
                             </span>
                             <span className="text-[11px] font-medium text-gray-700 dark:text-gray-300">
@@ -161,14 +362,14 @@ export function Sidebar({
                             key={name}
                             onClick={() => onLoadPreset?.(name)}
                             className="
-                w-full text-left px-3 py-2 rounded-lg text-xs font-medium
-                bg-gray-100 dark:bg-gray-800
-                text-gray-700 dark:text-gray-300
-                border border-transparent
-                hover:bg-violet-500/10 hover:text-violet-600 dark:hover:text-violet-400
-                hover:border-violet-400/30
-                transition-all duration-150
-              "
+                                w-full text-left px-3 py-2 rounded-lg text-xs font-medium
+                                bg-gray-100 dark:bg-gray-800
+                                text-gray-700 dark:text-gray-300
+                                border border-transparent
+                                hover:bg-violet-500/10 hover:text-violet-600 dark:hover:text-violet-400
+                                hover:border-violet-400/30
+                                transition-all duration-150
+                            "
                         >
                             {name}
                         </button>
@@ -179,39 +380,44 @@ export function Sidebar({
             {/* ══ 4. CONTROLS ══════════════════════════════════════════════════ */}
             <Section icon={<Play size={14} />} title="Controls">
 
-                {/* Weighted toggle */}
+                {/* Weighted toggle — locked when algo forces it */}
                 <div
-                    onClick={onToggleWeighted}
-                    className="
-            flex items-center justify-between
-            px-3 py-2 rounded-lg mb-3 cursor-pointer
-            bg-gray-100 dark:bg-gray-800
-            hover:bg-gray-200 dark:hover:bg-gray-700
-            transition-colors duration-150
-          "
+                    onClick={weightedLocked ? undefined : onToggleWeighted}
+                    className={`
+                        flex items-center justify-between px-3 py-2 rounded-lg mb-3
+                        transition-colors duration-150
+                        ${weightedLocked
+                            ? "opacity-60 cursor-not-allowed bg-gray-100 dark:bg-gray-800"
+                            : "cursor-pointer bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700"
+                        }
+                    `}
                 >
-                    <span className="text-xs text-gray-600 dark:text-gray-400 font-medium">
-                        Weighted edges
-                    </span>
+                    <div className="flex items-center gap-1.5">
+                        <span className="text-xs text-gray-600 dark:text-gray-400 font-medium">
+                            Weighted edges
+                        </span>
+                        {weightedLocked && (
+                            <Lock size={10} className="text-gray-400 dark:text-gray-500" />
+                        )}
+                    </div>
                     <div className={`
-            w-9 h-5 rounded-full relative transition-colors duration-200
-            ${isWeighted ? "bg-violet-500" : "bg-gray-400 dark:bg-gray-600"}
-          `}>
+                        w-9 h-5 rounded-full relative transition-colors duration-200
+                        ${isWeighted ? "bg-violet-500" : "bg-gray-400 dark:bg-gray-600"}
+                    `}>
                         <div className={`
-              absolute top-0.5 w-4 h-4 rounded-full bg-white shadow
-              transition-all duration-200
-              ${isWeighted ? "left-4" : "left-0.5"}
-            `} />
+                            absolute top-0.5 w-4 h-4 rounded-full bg-white shadow
+                            transition-all duration-200
+                            ${isWeighted ? "left-4" : "left-0.5"}
+                        `} />
                     </div>
                 </div>
 
-                {/* ── 6b: DLS depth limit — appears only when DLS is selected ─── */}
+                {/* DLS depth limit */}
                 {selectedAlgo === "DLS" && (
                     <div className="
-            flex items-center justify-between
-            px-3 py-2 rounded-lg mb-3
-            bg-amber-500/10 border border-amber-500/30
-          ">
+                        flex items-center justify-between px-3 py-2 rounded-lg mb-3
+                        bg-amber-500/10 border border-amber-500/30
+                    ">
                         <div className="flex items-center gap-2">
                             <Layers size={13} className="text-amber-400 shrink-0" />
                             <span className="text-xs text-amber-600 dark:text-amber-400 font-medium">
@@ -227,19 +433,19 @@ export function Sidebar({
                                 setDlsDepthLimit(Math.max(1, Math.min(20, Number(e.target.value))))
                             }
                             className="
-                w-12 text-center text-xs font-mono font-semibold
-                rounded-md px-1 py-1
-                bg-gray-100 dark:bg-gray-800
-                border border-amber-400/40
-                text-gray-800 dark:text-gray-200
-                outline-none focus:border-amber-400
-                transition-colors duration-150
-              "
+                                w-12 text-center text-xs font-mono font-semibold
+                                rounded-md px-1 py-1
+                                bg-gray-100 dark:bg-gray-800
+                                border border-amber-400/40
+                                text-gray-800 dark:text-gray-200
+                                outline-none focus:border-amber-400
+                                transition-colors duration-150
+                            "
                         />
                     </div>
                 )}
 
-                {/* Speed Control */}
+                {/* Speed slider */}
                 <div className="space-y-2 mb-3">
                     <div className="flex justify-between text-xs text-gray-400">
                         <span>Speed</span>
@@ -260,36 +466,36 @@ export function Sidebar({
                     </div>
                 </div>
 
-                {/* Visualize — passes depthLimit as second arg */}
+                {/* Visualize */}
                 <button
                     onClick={() => onVisualize?.(selectedAlgo, dlsDepthLimit)}
                     disabled={isRunning}
                     className="
-            w-full py-2.5 rounded-lg text-sm font-semibold
-            bg-linear-to-r from-violet-500 to-cyan-500
-            hover:from-violet-600 hover:to-cyan-600
-            disabled:opacity-50 disabled:cursor-not-allowed
-            text-white shadow-md hover:shadow-violet-500/25
-            transition-all duration-200
-            flex items-center justify-center gap-2
-          "
+                        w-full py-2.5 rounded-lg text-sm font-semibold
+                        bg-linear-to-r from-violet-500 to-cyan-500
+                        hover:from-violet-600 hover:to-cyan-600
+                        disabled:opacity-50 disabled:cursor-not-allowed
+                        text-white shadow-md hover:shadow-violet-500/25
+                        transition-all duration-200
+                        flex items-center justify-center gap-2
+                    "
                 >
                     <Play size={14} /> {isRunning ? "Running..." : "Visualize"}
                 </button>
 
-                {/* Reset button */}
+                {/* Reset */}
                 <button
                     onClick={onClear}
                     disabled={isRunning}
                     className="
-            w-full mt-2 py-2 rounded-lg text-sm font-medium
-            bg-gray-100 dark:bg-gray-800
-            hover:bg-gray-200 dark:hover:bg-gray-700
-            disabled:opacity-50 disabled:cursor-not-allowed
-            text-gray-600 dark:text-gray-400
-            transition-colors duration-150
-            flex items-center justify-center gap-2
-          "
+                        w-full mt-2 py-2 rounded-lg text-sm font-medium
+                        bg-gray-100 dark:bg-gray-800
+                        hover:bg-gray-200 dark:hover:bg-gray-700
+                        disabled:opacity-50 disabled:cursor-not-allowed
+                        text-gray-600 dark:text-gray-400
+                        transition-colors duration-150
+                        flex items-center justify-center gap-2
+                    "
                 >
                     <RotateCcw size={13} /> Reset
                 </button>
@@ -297,32 +503,83 @@ export function Sidebar({
 
             {/* ══ 5. STEP LOG ══════════════════════════════════════════════════ */}
             <Section icon={<ListOrdered size={14} />} title="Step Log" grow>
-                <div className="flex flex-col gap-1 overflow-y-auto max-h-60 pr-1">
-                    {stepLog.length === 0 ? (
-                        <p className="text-[11px] text-gray-400 dark:text-gray-500 italic leading-relaxed">
-                            Steps will appear here once you hit Visualize...
-                        </p>
-                    ) : (
-                        stepLog.map((step, i) => (
-                            <div
-                                key={i}
-                                className="
-                  flex items-start gap-2 px-2 py-1.5 rounded-md text-[11px]
-                  bg-gray-50 dark:bg-gray-800/60
-                  text-gray-600 dark:text-gray-400
-                "
-                            >
-                                <span className="text-violet-400 font-mono shrink-0">
-                                    {String(i + 1).padStart(2, "0")}
-                                </span>
-                                <span className="leading-relaxed">{step}</span>
-                            </div>
-                        ))
-                    )}
-                </div>
+                <StepLog entries={stepLog} />
             </Section>
 
         </aside>
+    );
+}
+
+// ─── StepLog ─────────────────────────────────────────────────────────────────
+
+function classifyStep(text) {
+    if (!text) return "default";
+    if (text.startsWith("✅")) return "success";
+    if (text.startsWith("❌")) return "error";
+    if (text.startsWith("⚠️")) return "warn";
+    if (/running/i.test(text)) return "init";
+    if (/initialising|initializing|iteration/i.test(text)) return "init";
+    if (/goal.*reached|reached.*goal/i.test(text)) return "success";
+    if (/visiting|settling|visiting/i.test(text)) return "visiting";
+    if (/expanded|pushed|added to frontier/i.test(text)) return "expanded";
+    if (/backtrack|skipping|no path|exhausted|dead end|cutoff/i.test(text)) return "warn";
+    if (/forward|backward/i.test(text)) return "bidir";
+    return "default";
+}
+
+const STEP_STYLES = {
+    success: { dot: "bg-emerald-500", text: "text-emerald-600 dark:text-emerald-400", bg: "bg-emerald-500/5 dark:bg-emerald-500/10" },
+    error: { dot: "bg-rose-500", text: "text-rose-600 dark:text-rose-400", bg: "bg-rose-500/5 dark:bg-rose-500/10" },
+    warn: { dot: "bg-amber-400", text: "text-amber-600 dark:text-amber-400", bg: "bg-amber-500/5 dark:bg-amber-500/10" },
+    init: { dot: "bg-violet-400", text: "text-violet-600 dark:text-violet-400", bg: "bg-violet-500/5 dark:bg-violet-500/10" },
+    visiting: { dot: "bg-violet-500", text: "text-gray-700 dark:text-gray-300", bg: "bg-gray-50 dark:bg-gray-800/60" },
+    expanded: { dot: "bg-cyan-400", text: "text-gray-700 dark:text-gray-300", bg: "bg-gray-50 dark:bg-gray-800/60" },
+    bidir: { dot: "bg-sky-400", text: "text-sky-600 dark:text-sky-400", bg: "bg-sky-500/5 dark:bg-sky-500/10" },
+    default: { dot: "bg-gray-400", text: "text-gray-600 dark:text-gray-400", bg: "bg-gray-50 dark:bg-gray-800/40" },
+};
+
+function StepLog({ entries }) {
+    const bottomRef = useRef(null);
+
+    // Auto-scroll to bottom whenever entries change
+    useEffect(() => {
+        bottomRef.current?.scrollIntoView({ behavior: "smooth" });
+    }, [entries]);
+
+    if (entries.length === 0) {
+        return (
+            <p className="text-[11px] text-gray-400 dark:text-gray-500 italic leading-relaxed">
+                Steps will appear here once you hit Visualize...
+            </p>
+        );
+    }
+
+    return (
+        <div className="flex flex-col gap-0.5 overflow-y-auto flex-1 pr-1">
+            {entries.map((entry, i) => {
+                // Strip leading "N. " index prefix if present
+                const text = entry.replace(/^\d+\.\s*/, "");
+                const kind = classifyStep(text);
+                const s = STEP_STYLES[kind];
+                const isHeader = kind === "success" || kind === "error" || kind === "init";
+
+                return (
+                    <div
+                        key={i}
+                        className={`
+                            flex items-start gap-2 px-2 py-1.5 rounded-md text-[11px]
+                            ${s.bg}
+                            ${isHeader ? "font-medium" : ""}
+                        `}
+                    >
+                        {/* Coloured dot indicator */}
+                        <span className={`mt-1 w-1.5 h-1.5 rounded-full shrink-0 ${s.dot}`} />
+                        <span className={`leading-relaxed ${s.text}`}>{text}</span>
+                    </div>
+                );
+            })}
+            <div ref={bottomRef} />
+        </div>
     );
 }
 
@@ -331,10 +588,10 @@ export function Sidebar({
 function Section({ icon, title, children, grow = false }) {
     return (
         <div className={`
-      px-4 py-4
-      border-b border-gray-100 dark:border-gray-800
-      ${grow ? "flex-1 flex flex-col" : ""}
-    `}>
+            px-4 py-4
+            border-b border-gray-100 dark:border-gray-800
+            ${grow ? "flex-1 flex flex-col" : ""}
+        `}>
             <div className="flex items-center gap-2 mb-3">
                 <span className="text-violet-500">{icon}</span>
                 <h3 className="text-[11px] font-semibold uppercase tracking-widest text-gray-500 dark:text-gray-400">

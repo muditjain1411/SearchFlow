@@ -12,6 +12,7 @@ export default function App() {
   const [stepLog, setStepLog] = useState([]);
   const [isRunning, setIsRunning] = useState(false);
   const [speed, setSpeed] = useState(DEFAULT_SPEED);
+  const [lastResult, setLastResult] = useState(null); // { path, cost, algo }
   const canvasRef = useRef(null);
   const animationRef = useRef(null);
 
@@ -41,9 +42,13 @@ export default function App() {
   }, []);
 
   // ─── Export ───────────────────────────────────────────────────────────────
+  // Each mode temporarily sets the right animState on nodes/edges,
+  // ─── Export ───────────────────────────────────────────────────────────────
+  // Mode logic is handled inside GraphCanvas.handleDownload via onCloneNode —
+  // no React state mutation needed, zero flicker.
   const handleExport = useCallback((mode) => {
-    canvasRef.current?.handleDownload(mode);
-  }, []);
+    canvasRef.current?.handleDownload(mode, nodes, edges);
+  }, [nodes, edges]);
 
   // ─── Reset animation state ────────────────────────────────────────────────
   const resetAnimState = useCallback(() => {
@@ -81,13 +86,20 @@ export default function App() {
   }, [setNodes, setEdges]);
 
   // ─── Lock in final path highlight ─────────────────────────────────────────
+  // Only upgrades path nodes to "path" color.
+  // Everything else stays at whatever applyStep last set — traversal remains visible.
   const applyFinalPath = useCallback((path) => {
     if (!path || path.length === 0) return;
     const pathSet = new Set(path);
     setNodes(nds =>
       nds.map(n => ({
         ...n,
-        data: { ...n.data, animState: pathSet.has(n.id) ? "path" : "visited" }
+        data: {
+          ...n.data,
+          animState: pathSet.has(n.id)
+            ? "path"
+            : n.data.animState  // keep visited/frontier/null as-is
+        }
       }))
     );
     setEdges(eds =>
@@ -95,7 +107,9 @@ export default function App() {
         ...e,
         data: {
           ...e.data,
-          animState: (pathSet.has(e.source) && pathSet.has(e.target)) ? "path" : "visited"
+          animState: (pathSet.has(e.source) && pathSet.has(e.target))
+            ? "path"
+            : e.data.animState  // keep visited/null as-is
         }
       }))
     );
@@ -137,10 +151,16 @@ export default function App() {
           if (i === steps.length - 1) {
             setTimeout(() => {
               applyFinalPath(path);
+              const labelOf = (id) => nodes.find(n => n.id === id)?.data?.label ?? id;
+              const pathLabels = path.map(labelOf);
+              const visitedOrder = steps[steps.length - 1]?.visited?.map(labelOf) ?? [];
               const summary = path && path.length > 0
-                ? `✅ Path found: ${path.join(" → ")} | Cost: ${cost}`
-                : `❌ No path found from ${graph.start} to ${graph.goal}`;
+                ? `✅ Path found: ${pathLabels.join(" → ")} | Cost: ${cost}`
+                : `❌ No path found from ${labelOf(graph.start)} to ${labelOf(graph.goal)}`;
               setStepLog(prev => [...prev, summary]);
+              if (path && path.length > 0) {
+                setLastResult({ pathLabels, visitedOrder, cost, algo });
+              }
               setIsRunning(false);
             }, speed);
           }
@@ -152,13 +172,14 @@ export default function App() {
       setStepLog([`❌ Error: ${err.message}`]);
       setIsRunning(false);
     }
-  }, [isRunning, speed, serializeGraph, resetAnimState, applyStep, applyFinalPath]);
+  }, [isRunning, speed, nodes, serializeGraph, resetAnimState, applyStep, applyFinalPath]);
 
   // ─── Clear ─────────────────────────────────────────────────────────────────
   const handleClear = useCallback(() => {
     if (animationRef.current) clearTimeout(animationRef.current);
     setIsRunning(false);
     setStepLog([]);
+    setLastResult(null);
     resetAnimState();
     clearGraph();
   }, [clearGraph, resetAnimState]);
@@ -177,6 +198,7 @@ export default function App() {
         <div className="flex flex-1 overflow-hidden">
           <Sidebar
             nodes={nodes}
+            edges={edges}
             isWeighted={isWeighted}
             stepLog={stepLog}
             isRunning={isRunning}
@@ -184,7 +206,7 @@ export default function App() {
             onSpeedChange={setSpeed}
             onVisualize={handleVisualize}
             onLoadPreset={loadPreset}
-            onToggleWeighted={() => setIsWeighted(prev => !prev)}
+            onToggleWeighted={useCallback(() => setIsWeighted(prev => !prev), [])}
             onClear={handleClear}
           />
 
@@ -193,6 +215,7 @@ export default function App() {
             nodes={nodes}
             edges={edges}
             darkMode={darkMode}
+            lastResult={lastResult}
             onNodesChange={onNodesChange}
             onEdgesChange={onEdgesChange}
             onConnect={onConnect}

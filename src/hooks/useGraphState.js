@@ -66,9 +66,28 @@ const PRESETS = {
     },
 };
 
-// ─── ID Generator ─────────────────────────────────────────────────────────────
-let nodeCounter = 0;
-const generateId = () => `node_${++nodeCounter}_${Date.now()}`;
+// ─── Unique label generator ───────────────────────────────────────────────────
+// Generates next available label that doesn't already exist in the graph.
+// Uses A-Z first, then A1, B1, C1... to stay short and readable.
+const LETTERS = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
+
+function nextUniqueLabel(existingLabels, nodeType) {
+    if (nodeType === "start") return "S";
+    if (nodeType === "goal") return "G";
+    const used = new Set(existingLabels);
+    // Try single letters first
+    for (const letter of LETTERS) {
+        if (!used.has(letter)) return letter;
+    }
+    // Then letter+number
+    for (let n = 1; n <= 99; n++) {
+        for (const letter of LETTERS) {
+            const candidate = `${letter}${n}`;
+            if (!used.has(candidate)) return candidate;
+        }
+    }
+    return `N${Date.now()}`;
+}
 
 // ─── Default edge style factory ───────────────────────────────────────────────
 const makeEdge = (source, target, weight = 1) => ({
@@ -90,7 +109,6 @@ export function useGraphState() {
     const loadPreset = useCallback((presetName) => {
         const preset = PRESETS[presetName];
         if (!preset) return;
-        nodeCounter = 0;
 
         const styledNodes = preset.nodes.map((n) => ({
             ...n,
@@ -107,13 +125,12 @@ export function useGraphState() {
         setEdges(styledEdges);
     }, [setNodes, setEdges]);
 
-    // ── Add a node at a canvas position, optionally auto-parent ─────────────
+    // ── Add a node at a canvas position ──────────────────────────────────────
     const addNode = useCallback(
-        (nodeType, position, parentNodeId = null) => {
-            const id = generateId();
-            const labelMap = { start: "S", goal: "G", default: id.split("_")[1] };
+        (nodeType, position) => {
+            const id = `node_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`;
 
-            // Enforce single start / single goal
+            // Enforce single start / single goal — demote existing one to default
             if (nodeType === "start" || nodeType === "goal") {
                 setNodes((nds) =>
                     nds.map((n) =>
@@ -124,26 +141,23 @@ export function useGraphState() {
                 );
             }
 
-            const newNode = {
-                id,
-                type: "customNode",
-                position,
-                data: {
-                    label: labelMap[nodeType] ?? "N",
-                    type: nodeType,
-                },
-            };
+            // Generate a label that doesn't clash with any existing node label
+            const label = (nds) => nextUniqueLabel(nds.map(n => n.data.label), nodeType);
 
-            setNodes((nds) => [...nds, newNode]);
-
-            if (parentNodeId) {
-                const edge = makeEdge(parentNodeId, id);
-                setEdges((eds) => [...eds, edge]);
-            }
+            setNodes((nds) => {
+                const newLabel = label(nds);
+                const newNode = {
+                    id,
+                    type: "customNode",
+                    position,
+                    data: { label: newLabel, type: nodeType },
+                };
+                return [...nds, newNode];
+            });
 
             return id;
         },
-        [setNodes, setEdges]
+        [setNodes]
     );
 
     // ── Remove a node and all its connected edges ────────────────────────────
@@ -213,7 +227,6 @@ export function useGraphState() {
     );
 
     // ── Serialise graph for API call ─────────────────────────────────────────
-    // ✅ FIX 6: include position so A* / Greedy can compute Euclidean heuristic
     const serializeGraph = useCallback(() => {
         const startNode = nodes.find((n) => n.data.type === "start");
         const goalNode = nodes.find((n) => n.data.type === "goal");
@@ -221,8 +234,9 @@ export function useGraphState() {
         return {
             nodes: nodes.map((n) => ({
                 id: n.id,
+                label: n.data.label,   // for backend message humanisation
                 type: n.data.type,
-                position: n.position,   // ✅ needed for h(n) = Euclidean distance
+                position: n.position,     // for h(n) = Euclidean distance in A*/Greedy
             })),
             edges: edges.map((e) => ({
                 source: e.source,
@@ -238,7 +252,6 @@ export function useGraphState() {
     const clearGraph = useCallback(() => {
         setNodes([]);
         setEdges([]);
-        nodeCounter = 0;
     }, [setNodes, setEdges]);
 
     return {

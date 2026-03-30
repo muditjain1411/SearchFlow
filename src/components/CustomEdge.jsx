@@ -1,17 +1,19 @@
 // src/components/CustomEdge.jsx
 import { useState } from "react";
-import { BaseEdge, EdgeLabelRenderer, getStraightPath } from "@xyflow/react";
+import { BaseEdge, EdgeLabelRenderer, getBezierPath } from "@xyflow/react";
 import { X } from "lucide-react";
 
 export default function CustomEdge({
     id, sourceX, sourceY, targetX, targetY,
+    sourcePosition, targetPosition,
     data, selected,
 }) {
     const [editing, setEditing] = useState(false);
     const [weight, setWeight] = useState(data?.weight ?? 1);
 
-    const [edgePath, labelX, labelY] = getStraightPath({
-        sourceX, sourceY, targetX, targetY,
+    const [edgePath, labelX, labelY] = getBezierPath({
+        sourceX, sourceY, sourcePosition,
+        targetX, targetY, targetPosition,
     });
 
     const commitWeight = () => {
@@ -19,22 +21,41 @@ export default function CustomEdge({
         setEditing(false);
     };
 
-    const edgeColor = data?.animState === "path"
-        ? "#06b6d4"   // cyan  — final path
-        : data?.animState === "visited"
-            ? "#7c3aed"   // violet — visited
-            : "#6b7280";  // gray  — default
+    const isPath = data?.animState === "path";
+    const isVisited = data?.animState === "visited";
+
+    const edgeColor = isPath
+        ? "#06b6d4"
+        : isVisited
+            ? "#7c3aed"
+            : "#9ca3af";
+
+    const strokeWidth = isPath ? 2.5 : selected ? 2 : 1.5;
 
     return (
         <>
+            {/* Soft glow behind path edges */}
+            {isPath && (
+                <BaseEdge
+                    path={edgePath}
+                    style={{
+                        stroke: "#06b6d4",
+                        strokeWidth: 8,
+                        opacity: 0.18,
+                        transition: "all 0.3s",
+                    }}
+                />
+            )}
+
             <BaseEdge
                 path={edgePath}
                 style={{
                     stroke: edgeColor,
-                    strokeWidth: selected ? 2.5 : 1.5,
-                    transition: "stroke 0.3s",
+                    strokeWidth,
+                    transition: "stroke 0.3s, stroke-width 0.2s",
                 }}
             />
+
             <EdgeLabelRenderer>
                 <div
                     style={{
@@ -44,7 +65,7 @@ export default function CustomEdge({
                     }}
                     className="flex items-center gap-1 nodrag nopan"
                 >
-                    {/* Weight badge */}
+                    {/* Weight badge — theme-aware */}
                     {data?.showWeight && (
                         editing ? (
                             <input
@@ -55,35 +76,40 @@ export default function CustomEdge({
                                 onBlur={commitWeight}
                                 onKeyDown={(e) => e.key === "Enter" && commitWeight()}
                                 className="
-                  w-10 text-center text-xs rounded px-1 py-0.5
-                  bg-gray-900 border border-violet-500
-                  text-white outline-none
-                "
+                                    w-10 text-center text-xs rounded px-1 py-0.5
+                                    bg-white dark:bg-gray-900
+                                    border border-violet-500
+                                    text-gray-900 dark:text-white
+                                    outline-none shadow-md
+                                "
                             />
                         ) : (
                             <button
                                 onClick={() => setEditing(true)}
                                 className="
-                  px-2 py-0.5 rounded-full text-[11px] font-mono font-semibold
-                  bg-gray-800 border border-gray-600
-                  text-gray-200 hover:border-violet-400
-                  transition-colors duration-150
-                "
+                                    px-2 py-0.5 rounded-full text-[11px] font-mono font-semibold
+                                    bg-white dark:bg-gray-800
+                                    border border-gray-300 dark:border-gray-600
+                                    text-gray-700 dark:text-gray-200
+                                    hover:border-violet-400 hover:text-violet-600 dark:hover:text-violet-400
+                                    shadow-sm transition-colors duration-150
+                                "
                             >
-                                {weight}
+                                {data?.weight ?? weight}
                             </button>
                         )
                     )}
 
-                    {/* Delete edge button */}
+                    {/* Delete — shown on select */}
                     {selected && (
                         <button
                             onClick={() => data?.onRemove?.(id)}
                             className="
-                w-4 h-4 rounded-full bg-red-500 hover:bg-red-600
-                text-white flex items-center justify-center
-                transition-colors duration-150
-              "
+                                w-4 h-4 rounded-full
+                                bg-red-500 hover:bg-red-600
+                                text-white flex items-center justify-center
+                                shadow-sm transition-colors duration-150
+                            "
                         >
                             <X size={8} />
                         </button>
