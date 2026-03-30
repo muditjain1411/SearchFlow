@@ -33,6 +33,15 @@ export default function App() {
     setEdges,
   } = useGraphState();
 
+  const handleGraphEdit = useCallback(() => {
+    if (animationRef.current) clearTimeout(animationRef.current);
+    setIsRunning(false);
+    setStepLog([]);
+    setLastResult(null);
+  }, []);
+
+  
+
   // ─── Dark mode ────────────────────────────────────────────────────────────
   const handleToggleDark = useCallback(() => {
     setDarkMode(prev => {
@@ -216,8 +225,8 @@ export default function App() {
             edges={edges}
             darkMode={darkMode}
             lastResult={lastResult}
-            onNodesChange={onNodesChange}
-            onEdgesChange={onEdgesChange}
+            onNodesChange={(changes) => { onNodesChange(changes); }}
+            onEdgesChange={(changes) => { onEdgesChange(changes); }}
             onConnect={onConnect}
             addNode={addNode}
             removeNode={removeNode}
@@ -225,6 +234,7 @@ export default function App() {
             updateEdgeWeight={updateEdgeWeight}
             updateNodeLabel={updateNodeLabel}
             isWeighted={isWeighted}
+            
           />
         </div>
 

@@ -11,75 +11,85 @@ import {
 const PRESETS = {
     "Simple Graph": {
         nodes: [
-            { id: "A", position: { x: 250, y: 80 }, data: { label: "A", type: "start" } },
-            { id: "B", position: { x: 100, y: 220 }, data: { label: "B", type: "default" } },
-            { id: "C", position: { x: 400, y: 220 }, data: { label: "C", type: "default" } },
-            { id: "D", position: { x: 100, y: 360 }, data: { label: "D", type: "default" } },
-            { id: "E", position: { x: 400, y: 360 }, data: { label: "E", type: "goal" } },
+            { id: "A", position: { x: 400, y: 80 }, data: { label: "A", type: "start" } },
+            { id: "B", position: { x: 200, y: 260 }, data: { label: "B", type: "default" } },
+            { id: "C", position: { x: 600, y: 260 }, data: { label: "C", type: "default" } },
+            { id: "D", position: { x: 200, y: 440 }, data: { label: "D", type: "default" } },
+            { id: "E", position: { x: 600, y: 440 }, data: { label: "E", type: "goal" } },
         ],
         edges: [
-            { id: "A-B", source: "A", target: "B", data: { weight: 1 } },
-            { id: "A-C", source: "A", target: "C", data: { weight: 4 } },
-            { id: "B-D", source: "B", target: "D", data: { weight: 2 } },
-            { id: "C-E", source: "C", target: "E", data: { weight: 3 } },
-            { id: "D-E", source: "D", target: "E", data: { weight: 1 } },
+            // A centered above B and C — straight bottom-src down to top-tgt
+            { id: "A-B", source: "A", target: "B", sourceHandle: "bottom-src", targetHandle: "top-tgt", data: { weight: 1 } },
+            { id: "A-C", source: "A", target: "C", sourceHandle: "bottom-src", targetHandle: "top-tgt", data: { weight: 4 } },
+            // B directly above D
+            { id: "B-D", source: "B", target: "D", sourceHandle: "bottom-src", targetHandle: "top-tgt", data: { weight: 2 } },
+            // C directly above E
+            { id: "C-E", source: "C", target: "E", sourceHandle: "bottom-src", targetHandle: "top-tgt", data: { weight: 3 } },
+            // D and E same row — horizontal
+            { id: "D-E", source: "D", target: "E", sourceHandle: "right-src", targetHandle: "left-tgt", data: { weight: 1 } },
         ],
     },
+
     "Binary Tree": {
         nodes: [
-            { id: "1", position: { x: 300, y: 60 }, data: { label: "1", type: "start" } },
-            { id: "2", position: { x: 150, y: 180 }, data: { label: "2", type: "default" } },
-            { id: "3", position: { x: 450, y: 180 }, data: { label: "3", type: "default" } },
-            { id: "4", position: { x: 75, y: 300 }, data: { label: "4", type: "default" } },
-            { id: "5", position: { x: 225, y: 300 }, data: { label: "5", type: "default" } },
-            { id: "6", position: { x: 375, y: 300 }, data: { label: "6", type: "default" } },
-            { id: "7", position: { x: 525, y: 300 }, data: { label: "7", type: "goal" } },
+            { id: "1", position: { x: 350, y: 60 }, data: { label: "1", type: "start" } },
+            { id: "2", position: { x: 175, y: 200 }, data: { label: "2", type: "default" } },
+            { id: "3", position: { x: 525, y: 200 }, data: { label: "3", type: "default" } },
+            { id: "4", position: { x: 75, y: 340 }, data: { label: "4", type: "default" } },
+            { id: "5", position: { x: 275, y: 340 }, data: { label: "5", type: "default" } },
+            { id: "6", position: { x: 425, y: 340 }, data: { label: "6", type: "default" } },
+            { id: "7", position: { x: 625, y: 340 }, data: { label: "7", type: "goal" } },
         ],
         edges: [
-            { id: "1-2", source: "1", target: "2", data: { weight: 1 } },
-            { id: "1-3", source: "1", target: "3", data: { weight: 1 } },
-            { id: "2-4", source: "2", target: "4", data: { weight: 1 } },
-            { id: "2-5", source: "2", target: "5", data: { weight: 1 } },
-            { id: "3-6", source: "3", target: "6", data: { weight: 1 } },
-            { id: "3-7", source: "3", target: "7", data: { weight: 1 } },
+            { id: "1-2", source: "1", target: "2", sourceHandle: "bottom-src", targetHandle: "top-tgt", data: { weight: 1 } },
+            { id: "1-3", source: "1", target: "3", sourceHandle: "bottom-src", targetHandle: "top-tgt", data: { weight: 1 } },
+            { id: "2-4", source: "2", target: "4", sourceHandle: "bottom-src", targetHandle: "top-tgt", data: { weight: 1 } },
+            { id: "2-5", source: "2", target: "5", sourceHandle: "bottom-src", targetHandle: "top-tgt", data: { weight: 1 } },
+            { id: "3-6", source: "3", target: "6", sourceHandle: "bottom-src", targetHandle: "top-tgt", data: { weight: 1 } },
+            { id: "3-7", source: "3", target: "7", sourceHandle: "bottom-src", targetHandle: "top-tgt", data: { weight: 1 } },
         ],
     },
+
     "Weighted Graph": {
         nodes: [
-            { id: "S", position: { x: 100, y: 200 }, data: { label: "S", type: "start" } },
-            { id: "A", position: { x: 280, y: 80 }, data: { label: "A", type: "default" } },
-            { id: "B", position: { x: 280, y: 320 }, data: { label: "B", type: "default" } },
-            { id: "C", position: { x: 460, y: 80 }, data: { label: "C", type: "default" } },
-            { id: "D", position: { x: 460, y: 320 }, data: { label: "D", type: "default" } },
-            { id: "G", position: { x: 620, y: 200 }, data: { label: "G", type: "goal" } },
+            { id: "S", position: { x: 80, y: 240 }, data: { label: "S", type: "start" } },
+            { id: "A", position: { x: 300, y: 100 }, data: { label: "A", type: "default" } },
+            { id: "B", position: { x: 300, y: 380 }, data: { label: "B", type: "default" } },
+            { id: "C", position: { x: 520, y: 100 }, data: { label: "C", type: "default" } },
+            { id: "D", position: { x: 520, y: 380 }, data: { label: "D", type: "default" } },
+            { id: "G", position: { x: 720, y: 240 }, data: { label: "G", type: "goal" } },
         ],
         edges: [
-            { id: "S-A", source: "S", target: "A", data: { weight: 3 } },
-            { id: "S-B", source: "S", target: "B", data: { weight: 5 } },
-            { id: "A-C", source: "A", target: "C", data: { weight: 2 } },
-            { id: "B-D", source: "B", target: "D", data: { weight: 4 } },
-            { id: "C-G", source: "C", target: "G", data: { weight: 6 } },
-            { id: "D-G", source: "D", target: "G", data: { weight: 2 } },
-            { id: "A-B", source: "A", target: "B", data: { weight: 1 } },
-            { id: "C-D", source: "C", target: "D", data: { weight: 3 } },
+            // S → A: diagonal up-right — bottom-src to left-tgt
+            { id: "S-A", source: "S", target: "A", sourceHandle: "right-src", targetHandle: "left-tgt", data: { weight: 3 } },
+            // S → B: diagonal down-right — top-src to left-tgt
+            { id: "S-B", source: "S", target: "B", sourceHandle: "right-src", targetHandle: "left-tgt", data: { weight: 5 } },
+            // A → C: same row horizontal
+            { id: "A-C", source: "A", target: "C", sourceHandle: "right-src", targetHandle: "left-tgt", data: { weight: 2 } },
+            // B → D: same row horizontal
+            { id: "B-D", source: "B", target: "D", sourceHandle: "right-src", targetHandle: "left-tgt", data: { weight: 4 } },
+            // C → G: diagonal down-right — right-src to top-tgt
+            { id: "C-G", source: "C", target: "G", sourceHandle: "right-src", targetHandle: "left-tgt", data: { weight: 6 } },
+            // D → G: diagonal up-right — right-src to bottom-tgt
+            { id: "D-G", source: "D", target: "G", sourceHandle: "right-src", targetHandle: "left-tgt", data: { weight: 2 } },
+            // A → B: same column vertical
+            { id: "A-B", source: "A", target: "B", sourceHandle: "bottom-src", targetHandle: "top-tgt", data: { weight: 1 } },
+            // C → D: same column vertical
+            { id: "C-D", source: "C", target: "D", sourceHandle: "bottom-src", targetHandle: "top-tgt", data: { weight: 3 } },
         ],
     },
 };
 
 // ─── Unique label generator ───────────────────────────────────────────────────
-// Generates next available label that doesn't already exist in the graph.
-// Uses A-Z first, then A1, B1, C1... to stay short and readable.
 const LETTERS = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
 
 function nextUniqueLabel(existingLabels, nodeType) {
     if (nodeType === "start") return "S";
     if (nodeType === "goal") return "G";
     const used = new Set(existingLabels);
-    // Try single letters first
     for (const letter of LETTERS) {
         if (!used.has(letter)) return letter;
     }
-    // Then letter+number
     for (let n = 1; n <= 99; n++) {
         for (const letter of LETTERS) {
             const candidate = `${letter}${n}`;
@@ -89,13 +99,15 @@ function nextUniqueLabel(existingLabels, nodeType) {
     return `N${Date.now()}`;
 }
 
-// ─── Default edge style factory ───────────────────────────────────────────────
-const makeEdge = (source, target, weight = 1) => ({
+// ─── Default edge factory ─────────────────────────────────────────────────────
+const makeEdge = (source, target, weight = 1, sourcePosition, targetPosition) => ({
     id: `${source}-${target}-${Date.now()}`,
     source,
     target,
     type: "customEdge",
     markerEnd: { type: MarkerType.ArrowClosed, width: 18, height: 18 },
+    ...(sourcePosition && { sourcePosition }),
+    ...(targetPosition && { targetPosition }),
     data: { weight },
 });
 
@@ -119,65 +131,86 @@ export function useGraphState() {
             ...e,
             type: "customEdge",
             markerEnd: { type: MarkerType.ArrowClosed, width: 18, height: 18 },
+            // ✅ Pass explicit handle IDs through so CustomEdge renders clean beziers
+            sourceHandle: e.sourceHandle ?? null,
+            targetHandle: e.targetHandle ?? null,
         }));
 
         setNodes(styledNodes);
         setEdges(styledEdges);
     }, [setNodes, setEdges]);
 
-    // ── Add a node at a canvas position ──────────────────────────────────────
     const addNode = useCallback(
         (nodeType, position) => {
             const id = `node_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`;
 
-            // Enforce single start / single goal — demote existing one to default
             if (nodeType === "start" || nodeType === "goal") {
                 setNodes((nds) =>
                     nds.map((n) =>
                         n.data.type === nodeType
-                            ? { ...n, data: { ...n.data, type: "default" } }
+                            ? { ...n, data: { ...n.data, type: "default", animState: null } }
                             : n
                     )
                 );
             }
 
-            // Generate a label that doesn't clash with any existing node label
-            const label = (nds) => nextUniqueLabel(nds.map(n => n.data.label), nodeType);
-
             setNodes((nds) => {
-                const newLabel = label(nds);
-                const newNode = {
-                    id,
-                    type: "customNode",
-                    position,
-                    data: { label: newLabel, type: nodeType },
-                };
-                return [...nds, newNode];
+                const newLabel = nextUniqueLabel(nds.map(n => n.data.label), nodeType);
+                // ✅ Clear all animStates on existing nodes + add new node clean
+                return [
+                    ...nds.map(n => ({ ...n, data: { ...n.data, animState: null } })),
+                    {
+                        id,
+                        type: "customNode",
+                        position,
+                        data: { label: newLabel, type: nodeType, animState: null },
+                    },
+                ];
             });
+
+            // ✅ Clear all edge animStates too
+            setEdges(eds => eds.map(e => ({ ...e, data: { ...e.data, animState: null } })));
 
             return id;
         },
-        [setNodes]
+        [setNodes, setEdges]  // ← add setEdges to deps
     );
 
-    // ── Remove a node and all its connected edges ────────────────────────────
     const removeNode = useCallback(
         (nodeId) => {
-            setNodes((nds) => nds.filter((n) => n.id !== nodeId));
+            setNodes((nds) =>
+                nds
+                    .filter((n) => n.id !== nodeId)
+                    .map(n => ({ ...n, data: { ...n.data, animState: null } })) // ✅
+            );
             setEdges((eds) =>
-                eds.filter((e) => e.source !== nodeId && e.target !== nodeId)
+                eds
+                    .filter((e) => e.source !== nodeId && e.target !== nodeId)
+                    .map(e => ({ ...e, data: { ...e.data, animState: null } })) // ✅
             );
         },
         [setNodes, setEdges]
     );
 
-    // ── Handle new edge drawn by user on canvas ──────────────────────────────
     const onConnect = useCallback(
         (params) => {
-            const edge = makeEdge(params.source, params.target);
-            setEdges((eds) => addEdge({ ...params, ...edge }, eds));
+            const edge = makeEdge(
+                params.source,
+                params.target,
+                1,
+                params.sourcePosition,
+                params.targetPosition,
+            );
+            setEdges((eds) =>
+                addEdge(
+                    { ...params, ...edge },
+                    eds.map(e => ({ ...e, data: { ...e.data, animState: null } })) // ✅
+                )
+            );
+            // ✅ Clear node animStates too
+            setNodes(nds => nds.map(n => ({ ...n, data: { ...n.data, animState: null } })));
         },
-        [setEdges]
+        [setEdges, setNodes]  // ← add setNodes to deps
     );
 
     // ── Update edge weight ───────────────────────────────────────────────────
@@ -194,12 +227,17 @@ export function useGraphState() {
         [setEdges]
     );
 
-    // ── Remove an edge ───────────────────────────────────────────────────────
     const removeEdge = useCallback(
         (edgeId) => {
-            setEdges((eds) => eds.filter((e) => e.id !== edgeId));
+            setEdges((eds) =>
+                eds
+                    .filter((e) => e.id !== edgeId)
+                    .map(e => ({ ...e, data: { ...e.data, animState: null } })) // ✅
+            );
+            // ✅ Clear node animStates too
+            setNodes(nds => nds.map(n => ({ ...n, data: { ...n.data, animState: null } })));
         },
-        [setEdges]
+        [setEdges, setNodes]  // ← add setNodes to deps
     );
 
     // ── Update node label ────────────────────────────────────────────────────
@@ -214,7 +252,7 @@ export function useGraphState() {
         [setNodes]
     );
 
-    // ── Change node type (start / goal / default) ────────────────────────────
+    // ── Change node type ─────────────────────────────────────────────────────
     const updateNodeType = useCallback(
         (nodeId, type) => {
             setNodes((nds) =>
@@ -234,14 +272,14 @@ export function useGraphState() {
         return {
             nodes: nodes.map((n) => ({
                 id: n.id,
-                label: n.data.label,   // for backend message humanisation
+                label: n.data.label,
                 type: n.data.type,
-                position: n.position,     // for h(n) = Euclidean distance in A*/Greedy
+                position: n.position,       // needed for A*/Greedy Euclidean h(n)
             })),
             edges: edges.map((e) => ({
                 source: e.source,
                 target: e.target,
-                weight: e.data?.weight ?? 1,
+                data: { weight: e.data?.weight ?? 1 },  // nested for backend _parse_weight
             })),
             start: startNode?.id ?? null,
             goal: goalNode?.id ?? null,
@@ -255,20 +293,13 @@ export function useGraphState() {
     }, [setNodes, setEdges]);
 
     return {
-        // React Flow core
         nodes, edges,
         onNodesChange, onEdgesChange, onConnect,
-        // ✅ FIX 5: export setNodes/setEdges — App.jsx animation system needs them
         setNodes, setEdges,
-        // Node actions
         addNode, removeNode, updateNodeLabel, updateNodeType,
-        // Edge actions
         updateEdgeWeight, removeEdge,
-        // Graph-level
         loadPreset, serializeGraph, clearGraph,
-        // Weighted mode
         isWeighted, setIsWeighted,
-        // Preset names
         presetNames: Object.keys(PRESETS),
     };
 }

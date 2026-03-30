@@ -27,6 +27,12 @@ const HANDLE_BASE = `
     !transition-opacity !duration-200
 `;
 
+// Target handles are transparent — they just provide the drop zone,
+// the visible dot comes from the source handle stacked at the same position
+const HANDLE_TARGET = `
+    !w-3 !h-3 !rounded-full !opacity-0 !border-0 !bg-transparent
+`;
+
 export default function CustomNode({ id, data, selected }) {
     const [editing, setEditing] = useState(false);
     const [label, setLabel] = useState(data.label);
@@ -119,11 +125,13 @@ export default function CustomNode({ id, data, selected }) {
                 </span>
             )}
 
-            {/* Handles — hidden until hover */}
-            <Handle type="target" position={Position.Top} className={HANDLE_BASE} />
-            <Handle type="source" position={Position.Bottom} className={HANDLE_BASE} />
-            <Handle type="target" position={Position.Left} className={HANDLE_BASE} />
-            <Handle type="source" position={Position.Right} className={HANDLE_BASE} />
+            {/* Each position has source + target handle so any direction connects */}
+            {[Position.Top, Position.Bottom, Position.Left, Position.Right].map((pos) => (
+                <span key={pos}>
+                    <Handle type="source" position={pos} id={`${pos}-src`} className={HANDLE_BASE} />
+                    <Handle type="target" position={pos} id={`${pos}-tgt`} className={HANDLE_TARGET} />
+                </span>
+            ))}
         </div>
     );
 }

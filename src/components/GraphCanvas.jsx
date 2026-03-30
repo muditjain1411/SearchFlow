@@ -135,26 +135,35 @@ function TraversalOverlay({ nodes, edges, lastResult }) {
     const { visitedOrder } = lastResult;
     if (!visitedOrder || visitedOrder.length < 2) return null;
 
-    // Build label → position map from React Flow nodes
+    // label → flow-space centre position
     const labelToPos = {};
     nodes.forEach(n => {
-        labelToPos[n.data.label] = {
-            x: n.position.x + 28, // centre of 56px node
-            y: n.position.y + 28,
-        };
+        labelToPos[n.data.label] = { x: n.position.x + 28, y: n.position.y + 28 };
     });
 
-    // Build traversal edge segments (consecutive visited pairs)
+    // Build segments, deduplicating repeated edges.
+    // For each unique (A,B) pair, track how many times it has appeared
+    // so we can stagger the perpendicular offset to avoid overlap.
+    const pairCount = {};
     const segments = [];
+
     for (let i = 0; i < visitedOrder.length - 1; i++) {
-        const a = labelToPos[visitedOrder[i]];
-        const b = labelToPos[visitedOrder[i + 1]];
-        if (a && b) segments.push({ from: a, to: b, step: i + 1 });
+        const aLabel = visitedOrder[i];
+        const bLabel = visitedOrder[i + 1];
+        const a = labelToPos[aLabel];
+        const b = labelToPos[bLabel];
+        if (!a || !b) continue;
+
+        // Canonical key (undirected) so A→B and B→A share the same counter
+        const key = [aLabel, bLabel].sort().join("↔");
+        pairCount[key] = (pairCount[key] ?? 0) + 1;
+        const occurence = pairCount[key]; // 1st, 2nd, 3rd time this pair appears
+
+        segments.push({ from: a, to: b, step: i + 1, occurence });
     }
 
     if (segments.length === 0) return null;
 
-    // Convert flow coords to screen coords
     const toScreen = (p) => ({ x: p.x * zoom + x, y: p.y * zoom + y });
 
     return (
@@ -164,39 +173,54 @@ function TraversalOverlay({ nodes, edges, lastResult }) {
             data-traversal="true"
         >
             <defs>
-                <marker id="tv-arrow" markerWidth="6" markerHeight="6" refX="5" refY="3" orient="auto">
-                    <path d="M0,0 L0,6 L6,3 z" fill="#a78bfa" opacity="0.7" />
+                <marker id="tv-arrow" markerWidth="7" markerHeight="7" refX="6" refY="3.5" orient="auto">
+                    <path d="M0,0 L0,7 L7,3.5 z" fill="#a78bfa" opacity="0.75" />
                 </marker>
             </defs>
-            {segments.map(({ from, to, step }) => {
+            {segments.map(({ from, to, step, occurence }) => {
                 const s = toScreen(from);
                 const e2 = toScreen(to);
-                // Midpoint for step number label
                 const mx = (s.x + e2.x) / 2;
                 const my = (s.y + e2.y) / 2;
-                // Slight offset so it doesn't overlap the actual edge
-                const dx = e2.y - s.y;
-                const dy = s.x - e2.x;
+
+                // Perpendicular direction
+                const dx = e2.x - s.x;
+                const dy = e2.y - s.y;
                 const len = Math.sqrt(dx * dx + dy * dy) || 1;
-                const ox = (dx / len) * 10;
-                const oy = (dy / len) * 10;
+                const perpX = -dy / len;
+                const perpY = dx / len;
+
+                // Stagger offset: 1st pass = 12px, 2nd = -18px, 3rd = 24px…
+                const baseOffset = 12;
+                const sign = occurence % 2 === 1 ? 1 : -1;
+                const magnitude = baseOffset + Math.floor((occurence - 1) / 2) * 12;
+                const ox = perpX * sign * magnitude;
+                const oy = perpY * sign * magnitude;
+
+                // Shorten line to avoid overlapping node circles (r≈28px in flow space → zoom)
+                const shortenPx = 20;
+                const ratio = shortenPx / len;
+                const sx1 = s.x + dx * ratio + ox;
+                const sy1 = s.y + dy * ratio + oy;
+                const sx2 = e2.x - dx * ratio + ox;
+                const sy2 = e2.y - dy * ratio + oy;
+
                 return (
-                    <g key={step}>
+                    <g key={`${step}`}>
                         <line
-                            x1={s.x + ox} y1={s.y + oy}
-                            x2={e2.x + ox} y2={e2.y + oy}
+                            x1={sx1} y1={sy1} x2={sx2} y2={sy2}
                             stroke="#a78bfa"
                             strokeWidth={1.5}
                             strokeDasharray="5 3"
-                            strokeOpacity={0.6}
+                            strokeOpacity={0.65}
                             markerEnd="url(#tv-arrow)"
                         />
-                        <circle cx={mx + ox} cy={my + oy} r={8} fill="rgba(124,58,237,0.7)" />
+                        <circle cx={mx + ox} cy={my + oy} r={7} fill="rgba(109,40,217,0.8)" />
                         <text
-                            x={mx + ox} y={my + oy + 3.5}
+                            x={mx + ox} y={my + oy + 3}
                             textAnchor="middle"
                             fill="white"
-                            fontSize={8}
+                            fontSize={7}
                             fontWeight="700"
                             fontFamily="monospace"
                         >{step}</text>
