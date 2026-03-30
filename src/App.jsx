@@ -33,7 +33,6 @@ export default function App() {
     setEdges,
   } = useGraphState();
 
-  // ─── Dark mode ────────────────────────────────────────────────────────────
   const handleToggleDark = useCallback(() => {
     setDarkMode(prev => {
       document.documentElement.classList.toggle("dark", !prev);
@@ -41,22 +40,17 @@ export default function App() {
     });
   }, []);
 
-  // ─── Export ───────────────────────────────────────────────────────────────
-  // Each mode temporarily sets the right animState on nodes/edges,
-  // ─── Export ───────────────────────────────────────────────────────────────
-  // Mode logic is handled inside GraphCanvas.handleDownload via onCloneNode —
-  // no React state mutation needed, zero flicker.
+
   const handleExport = useCallback((mode) => {
     canvasRef.current?.handleDownload(mode, nodes, edges);
   }, [nodes, edges]);
 
-  // ─── Reset animation state ────────────────────────────────────────────────
+
   const resetAnimState = useCallback(() => {
     setNodes(nds => nds.map(n => ({ ...n, data: { ...n.data, animState: null } })));
     setEdges(eds => eds.map(e => ({ ...e, data: { ...e.data, animState: null } })));
   }, [setNodes, setEdges]);
 
-  // ─── Clear result + anim when user edits the graph ───────────────────────
   const handleGraphEdit = useCallback(() => {
     if (animationRef.current) clearTimeout(animationRef.current);
     setIsRunning(false);
@@ -65,7 +59,6 @@ export default function App() {
     resetAnimState();
   }, [resetAnimState]);
 
-  // ─── Apply a single step to the canvas ───────────────────────────────────
   const applyStep = useCallback((step) => {
     const { current, visited, frontier, path } = step;
     const visitedSet = new Set(visited || []);
@@ -94,9 +87,6 @@ export default function App() {
     );
   }, [setNodes, setEdges]);
 
-  // ─── Lock in final path highlight ─────────────────────────────────────────
-  // Only upgrades path nodes to "path" color.
-  // Everything else stays at whatever applyStep last set — traversal remains visible.
   const applyFinalPath = useCallback((path) => {
     if (!path || path.length === 0) return;
     const pathSet = new Set(path);
@@ -124,8 +114,6 @@ export default function App() {
     );
   }, [setNodes, setEdges]);
 
-  // ─── Main visualize handler ────────────────────────────────────────────────
-  // 6b: accepts depthLimit as second param, adds depth_limit to payload for DLS
   const handleVisualize = useCallback(async (algo, depthLimit = 5) => {
     if (isRunning) return;
     if (animationRef.current) clearTimeout(animationRef.current);
@@ -139,7 +127,6 @@ export default function App() {
       return;
     }
 
-    // ── Attach depth_limit for DLS ──────────────────────────────────────────
     if (algo === "DLS") {
       graph.depth_limit = depthLimit;
     }
@@ -183,7 +170,6 @@ export default function App() {
     }
   }, [isRunning, speed, nodes, serializeGraph, resetAnimState, applyStep, applyFinalPath]);
 
-  // ─── Wrap graph-mutating actions to clear result on edit ─────────────────
   const handleAddNode = useCallback((type, pos) => {
     handleGraphEdit();
     addNode(type, pos);
@@ -212,7 +198,6 @@ export default function App() {
     clearGraph();
   }, [clearGraph, resetAnimState]);
 
-  // ─── Render ───────────────────────────────────────────────────────────────
   return (
     <div className={darkMode ? "dark" : ""}>
       <div className="flex flex-col h-screen bg-gray-950 text-white">
